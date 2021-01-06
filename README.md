@@ -36,7 +36,7 @@ The required inputs to Bonsai are listed below. Additional parameters can be spe
     - `chrom`: (string) Chromosome on which the segment is found.
     - `start`: (float) Physical start position of the segment.
     - `end`: (float) Physical end position of the segment.
-    - `is_full`: (bool) Indicates whether the segment is half (IBD1) or full (IBD2)
+    - `is_full`: (bool) Indicates whether the segment is half (IBD1) or full (IBD2).
     - `seg_cm`: (float) Length of the segment in centimorgans.
 * `bio_info`: (List of dicts) A list of dicts containing sex and age information for genotyped individuals. `bio_info` has the form [{'genotype_id' : int, 'sex' : 'M'/'F', 'age' : int}].
 * `focal_id`: (Optional, int) To force the pedigree builder to start with a specified individual. Pedigrees can be different if they use different starting individuals. This ensures that the individual of interest is placed and it can improve the estimated relationships between them and their close relatives.
@@ -46,22 +46,27 @@ The required inputs to Bonsai are listed below. Additional parameters can be spe
 Output
 ------
 The output of bonsai is a dictionary containing a variety of information about the pedigree. Keys of the dictionary are as follows:
-* `normed_pedigree`: (dict) A dictionary representing the topology of the pedigree presented in a normalized form so that each node has two filled-in parents, the focal id has nodes filled in up to great grandparents, unknown sexes of spouses are imputed if the sex of the other spouse is known, leaf nodes are deleted if they are unrelated to the focal individaul, and sexes of parents are ordered with the mother listed first (if sex is known). `normed_pedigree` has the form `normed_pedigree = {child_id : [sex, parent1, parent2]}`.
+* `normed_pedigree`: (dict) A dictionary representing the topology of the pedigree presented in a normalized form so that each node has two filled-in parents, the focal id has nodes filled in up to great grandparents, unknown sexes of spouses are imputed if the sex of the other spouse is known, leaf nodes are deleted if they are unrelated to the focal individual, and sexes of parents are ordered with the mother listed first (if sex is known). `normed_pedigree` has the form `normed_pedigree = {child_id : [sex, parent1, parent2]}`.
 * `ped_obj`: (instance of the PedigreeObject class) `ped_obj` has attributes that include the inferred pedigree topology, inferred pairwise relationships, the pedigree log likelihood, etc. It contains methods for modifying a pedigree, adding or removing individuals, getting ancestors or descendants of a node, finding common ancestors of a set of nodes, etc. Use `dir(ped_obj)` for a full list of attributes and `ped_obj.attribute?` to see information about `attribute`. Some of the most common attributes are below:
 
     - `up_dict`: (dict) Stores the topology of the inferred pedigree. Has the form `{child_id : [child_sex, child_age, parent1_id, parent2_id]}`.
     - `down_dict`: (dict) Stores the topology of the inferred pedigree. Has the form `{parent_id : [parent_sex, parent_age, child1_id, child2_id, ...]}`.
     - `all_ids`: (list) List of all ids in the pedigree.
     - `ibd_stats`: (dict) Dict with keys of the form `frozenset({id1, id2})` and values giving summary statistics of the ibd sharing between the pair.
-    - `rel_dict`: (dict) Dict of the form `dict[id] = {'anc' : <Set of ancestor ids>, 'desc' : <Set of descendant ids>, 'rel' : <Set of relatives who are neither direct descendants or ancestors>}`.
+    - `rel_dict`: (dict) Dict of the form `dict[id] = {'anc' : <Set of ancestor ids>, 'desc' : <Set of descendant ids>, 'rel' : <Set of relatives who are neither direct descendants nor ancestors>}`.
     - `rels`: (dict) Nested dict of the form `dict[id1][id2] = deg`, where `deg` is a three-element tuple representing the relationship between `id1` and `id2`. Deg is of the form `deg = (num_up, num_down, num_anc)`, where `num_up` is the number of meioses separating `id1` from its common ancestor(s) with `id2`. `num_down` is the number of meioses separating `id2` from its common ancestor(s) with `id1`. `num_anc` is the number of common ancestors shared between `id1` and `id2`.
-    - `pairwise_log_likelihoods`: (dict) Nested dict of the form `dict[id1][id1] = log_like` of the relationship between `id` and `id2`.
+    - `pairwise_log_likelihoods`: (dict) Nested dict of the form `dict[id1][id1] = log_like`, where `log_like` is the pairwise log likelihood of the relationship between `id` and `id2` based on IBD sharing and age.
 
-    - `get_connecting_path_set`: (method) Find all ancestors on the path connecting two related nodes (`id1` and `id2`). Usage `path_set = ped_obj.get_connecting_path_set(id1, id2)`.
-    - `is_founder`: (method) Return a bool describing whether individual `id` is a pedigree founder. Usage `ped_obj.is_founder(id)`.
-    - `is_leaf`: (method) Return a bool describing whether individual `id` is a leaf node. Usage `ped_obj.is_leaf(id)`.
-    - `keep_nodes`: (method) For a set of node ids `S`, remove all nodes that are not in `S`, or which don't lie on a path connecting some pair in this set. Usage `ped_obj.keep_nodes({id1, id2, ...})`. The optional boolean parameter `keep_parents` retains all parents of nodes in `S`, even if they don't lie on a path connecting two nodes in `S`.
+    - `get_connecting_path_set`: (method) Find all ancestors on the path connecting two related nodes (`id1` and `id2`). 
+        - Usage: `path_set = ped_obj.get_connecting_path_set(id1, id2)`.
+    - `is_founder`: (method) Return a bool describing whether individual `id` is a pedigree founder.
+        - Usage: `ped_obj.is_founder(id)`.
+    - `is_leaf`: (method) Return a bool describing whether individual `id` is a leaf node.
+         - Usage: `ped_obj.is_leaf(id)`.
+    - `keep_nodes`: (method) For a set of node ids `S`, remove all nodes that are not in `S`, or which don't lie on a path connecting some pair in this set. The optional boolean parameter `include_parents` retains all parents of nodes in `S`, even if they don't lie on a path connecting two nodes in `S`.
+        - Usage: `ped_obj.keep_nodes({id1, id2, ...}, include_parents=False)`.
     - `order_sexes`: (method) Order sexes of parent ids in `ped_obj.up_dict` so that the maternal id (if known) appears first and the paternal id appears second.
+        - Usage: `ped_obj.order_sexes()`.
 
 WARNING: 
 * If there are twins or duplicated individuals (with different ids) in the input data, the pedigree in `ped_obj` only places one such individual and sets the others to the side. These unplaced twins are added back in the `normed_pedigree` dictionary, or they can be accessed using `result['twin_dict']`, which is a dictionary mapping the placed twin id to all of its twin ids.
