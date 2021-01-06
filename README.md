@@ -1,4 +1,4 @@
-ttam.bonsai
+bonsai
 =============
 
 Algorithm for automatically building pedigrees using IBD, Age, and Sex information.
@@ -30,7 +30,7 @@ result = bonsai.build_pedigree(ibd_seg_list, bio_info, focal_id=None)
 
 Inputs
 ------
-The required inputs to Bonsai are listed below. Additional parameters can be specified by the user. See [link](#BonsaiParameters).
+The required inputs to Bonsai are listed below. Additional parameters can be specified by the user. See [Additional Bonsai Parameters](#BonsaiParameters).
 * `ibd_seg_list`: (List of lists) A list of IBD segments of the form `[[id1, id2, chrom, start, end, is_full, seg_cm]]`, where the elements are of the following types:
 - `id`,`id2`: (int) IDs of the individuals sharing the segment.
 - `chrom`: (string) Chromosome on which the segment is found.
@@ -68,7 +68,7 @@ WARNING:
 
 
 
-<a name="BonsaiParameters"></a>Additional Bonsai parameters
+<a name="BonsaiParameters"></a>Additional Bonsai Parameters
 ------------------
 * **seed_pedigree_list**
     -   default = ()
