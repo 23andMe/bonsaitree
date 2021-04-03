@@ -35,8 +35,7 @@ from typing import Any, DefaultDict, Dict, FrozenSet, Iterator, List, Tuple
 import numpy as np
 import scipy.stats
 
-# import ttam.bonsai.v2.utils as utils
-import ttam.bonsai.v2.distributions as dists
+from .distributions import Distributions, AUTO_GENOME_LENGTH
 
 
 _RELATIONSHIP_TYPES: List[Tuple[int, int, int]] = [
@@ -212,7 +211,7 @@ def construct_point_prediction_group(
 
 def point_predictions(
     point_prediction_group: PointPredictionGroup,
-    distribution_models: dists.Distributions,
+    distribution_models: Distributions,
     renormalize_age_likes: bool = False,
 ) -> Tuple[
     Dict[int, Dict[int, Tuple[int, int, int]]],
@@ -263,7 +262,7 @@ def point_predictions(
 
 def scipy_estimate_relationships(
     point_prediction_group: PointPredictionGroup,
-    models: dists.Distributions,
+    models: Distributions,
     renormalize_age_likes: bool = False,
     target_relationship_types=RELATIONSHIP_TYPES,
 ) -> Dict[Tuple[int, int, int], List[float]]:
@@ -502,7 +501,7 @@ def get_distant_rel_log_like_by_ids(
     down_meioses: int,
     num_ancestors: int,
     point_prediction_group: PointPredictionGroup,
-    distribution_models: dists.Distributions,
+    distribution_models: Distributions,
 ) -> float:
     """
     Predicts likelyhood of a specific distant relationship between two individuals
@@ -580,9 +579,9 @@ def is_twin_pair(
  if total_full_len is None:
      return False
 
- if total_half_len < 0.95 * dists.AUTO_GENOME_LENGTH:
+ if total_half_len < 0.95 * AUTO_GENOME_LENGTH:
      return False
- elif total_full_len < 0.95 * dists.AUTO_GENOME_LENGTH:
+ elif total_full_len < 0.95 * AUTO_GENOME_LENGTH:
      return False
  elif sex1 != sex2:
      return False
