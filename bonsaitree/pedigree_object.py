@@ -263,9 +263,9 @@ class PedigreeObject(object):
                 del self.pairwise_log_likelihoods[id1]
 
         # Rename rels dict entries
-        rels_outer_keys = self.rels.keys()
+        rels_outer_keys = [*self.rels]
         for id1 in rels_outer_keys:
-            rels_inner_keys = self.rels[id1].keys()
+            rels_inner_keys = [*self.rels[id1]]
             for id2 in rels_inner_keys:
                 if id2 in resid_update_dict:
                     new_id = resid_update_dict[id2]
@@ -277,7 +277,7 @@ class PedigreeObject(object):
                 del self.rels[id1]
 
         # Rename ibd_stats dict entries
-        ibd_stats_keys = self.ibd_stats.keys()
+        ibd_stats_keys = [*self.ibd_stats]
         for key in ibd_stats_keys:
             id1,id2 = list(key)
             if id1 in resid_update_dict and id2 in resid_update_dict:
@@ -298,9 +298,9 @@ class PedigreeObject(object):
                 del self.ibd_stats[key]
 
         # Rename self.rel_dict entries
-        rel_dict_keys = self.rel_dict.keys()
+        rel_dict_keys = [*self.rel_dict]
         for key in rel_dict_keys:
-            for rel_type in self.rel_dict[key].keys():
+            for rel_type in [*self.rel_dict[key]]:
                 rels = self.rel_dict[key][rel_type]
                 for rel in rels:
                     if rel in resid_update_dict:
