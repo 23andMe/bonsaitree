@@ -13,7 +13,7 @@ from .exceptions import UnlikelyRelationshipException
 from .pedigree_object import connect_pedigrees_through_founders
 from .exceptions import BuildFailException
 from .analytical_likelihood_tools import get_log_prob_ibd, get_ibd_pattern_log_prob, get_background_test_pval_gamma, get_var_total_length_approx, get_log_like_total_length_normal, get_background_test_pval_normal
-from .node_dict_tools import get_min_id, get_node_dict_founder_set, get_node_dict, get_node_dict_for_root, adjust_node_dict_to_common_anc, extract_down_node_dict, get_leaf_set
+from .node_dict_tools import get_min_id, get_node_dict_founder_set, get_node_dict, get_node_dict_for_root, adjust_node_dict_to_common_anc, extract_down_node_dict, get_leaf_set, get_desc_deg_dict
 from .ibd_tools import check_overlap, get_segment_length_list, get_ibd_segs_between_sets, merge_ibd_segs, get_related_sets
 from .point_predictor import log_likelihoods_by_age
 from .distributions import load_distributions, AUTO_GENOME_LENGTH, MIN_PARENT_CHILD_AGE_DIFF
@@ -612,7 +612,7 @@ def combine_pedigrees(
             po1 = po1,
             po2 = po2,
             ibd_seg_list = ibd_seg_list,
-            drop_threshold = drop_ibd_alpha,
+            alpha = drop_ibd_alpha,
         )
 
         if not ca1:
@@ -624,7 +624,7 @@ def combine_pedigrees(
             po1 = po2,
             po2 = po1,
             ibd_seg_list = ibd_seg_list,
-            drop_threshold = drop_ibd_alpha,
+            alpha = drop_ibd_alpha,
         )
 
         if not ca2:
@@ -755,235 +755,210 @@ def drop_background_ibd(
     po1 : Any,
     po2 : Any,
     ibd_seg_list : List[List[Any]],
-    drop_threshold : float,
-    seen_ca1_set : Set[int] = None,
+    alpha : float,
 ) -> Any:
     """
-    Test whether any node below ca1 is the ancestor of a clade with unlikely amounts of
-    shared IBD with the other pedigree. If so, drop it out and re-set ca1 to be the node
-    below ca1 that does not have unlikely amounts of IBD. Repeat until both nodes below
-    ca1 have reasonably likely amounts of IBD. If there is no node below, as in the case
-    where ca1 is the parent of two genotyped siblings at least one of which has
-    background ibd, return None.
+    Test whether any node below ca1 is the ancestor of a clade with unlikely amounts of shared IBD with the other pedigree.
+    If so, drop it out and re-set ca1 to be the node below ca1 that does not have unlikely amounts of IBD.
+    Repeat until both nodes below ca1 have reasonably likely amounts of IBD.
+    If there is no node below, as in the case where ca1 is the parent of two genotyped siblings at least one of which
+    has background ibd, return None.
     Args:
-        ca1 : root of node_dict1
-        ca2 : root of node_dict2
-        node_dict1: independent node dict corresponding to 
-                    leaf_set1 : a dict of the form { node : {desc1 : deg1, desc2 : deg2, ....} }.
-                    ASSUME INDT
-        node_dict2: independent node dict corresponding to 
-                    leaf_set2 : a dict of the form { node : {desc1 : deg1, desc2 : deg2, ....} }.
-                    ASSUME INDT
+        po1 : pedigree object of pedigree 1
+        po2 : pedigree object of pedigree 2
+        ca1 : MRCA of gt_set1
+        ca2 : MRCA of gt_set2
         ibd_seg_list : list of the form [[id1, id2, chromosome, start, end, is_full_ibd, seg_cm]]
+        alpha : significance level for dropping background IBD.
         seen_ca1_set : set of common ancestors we have already tried. Prevents infinite recursion
-                       when ca1 has a partner who is a viable common ancestor, but 
+                       when ca1 has a partner who is a viable common ancestor.
     """
 
-    if not seen_ca1_set:
-        seen_ca1_set = set()
-
-    # avoid infinite recursions
-    if ca1 in seen_ca1_set:
-        return None
-    
-    seen_ca1_set.add(ca1)
-
-    node_dict1 = get_node_dict_for_root(
-        root_id = ca1,
-        ped_obj = po1,
-    )
-    node_dict2 = get_node_dict_for_root(
-        root_id = ca2,
-        ped_obj = po2,
-    )
-
-    all_node_set1 = {*node_dict1} | set.union(*[{*v} for v in node_dict1.values()])
-
-    if not node_dict1:
-        return ca1
-    elif ca1 in node_dict1 and len(node_dict1[ca1]) == 1:
+    # if ca1 is genotyped, then there is no relative of ca1 that shares
+    # IBD with ca2, so there is no one we can leverage to test whether
+    # the IBD in ca1 is background.
+    if ca1 > 0:
         return ca1
 
-    leaf_set1 = {i for i in get_leaf_set(node_dict1) if i > 0}
-    leaf_set2 = {i for i in get_leaf_set(node_dict2) if i > 0}
+    ca1_desc_set = po1.rel_dict[ca1]['desc']
+    ca2_desc_set = po2.rel_dict[ca2]['desc']
 
-    if ca1 > 0 and not leaf_set1:
-        leaf_set1.add(ca1)
-    if ca2 > 0 and not leaf_set2:
-        leaf_set2.add(ca2)
+    gt_set1 = {i for i in ca1_desc_set if i > 0}
+    gt_set2 = {i for i in ca2_desc_set if i > 0}
 
-    min_id1 = get_min_id(node_dict1)
-    min_id2 = get_min_id(node_dict2)
-    root_id = min(-1, min(min_id1,min_id2) - 1)  # id lower than any value in either node_dict
+    # ca1 or ca2 might be a leaf
+    if ca1 > 0:
+        gt_set1 |= {ca1}
+    if ca2 > 0:
+        gt_set2 |= {ca2}
 
-    child_id_set = {*node_dict1[ca1]}
+    # ca1 and ca2 might not be the MRCA. Adjust them to be MRCAs
+    common_anc_dict1 = po1.get_common_ancestor_dict([*gt_set1], get_mrcas=True)
+    common_anc_dict2 = po2.get_common_ancestor_dict([*gt_set2], get_mrcas=True)
 
-    # Loop over all clades directly descendended from ca1 and for each, infer the degree
-    # separating it from ca2. Store the L_tot between the clade and leaf_set2 along with
-    # the inferred degree between ca1 and ca2 (adj_deg)
-    child_id_count_L_tot_list = []
-    safe_child = None # child node we do not drop. Shares most IBD with po2.
-    L_tot_max = 0
-    min_adj_deg = INF
-    for child_id in child_id_set:
+    if ca1 not in common_anc_dict1:
+        ca1 = [i for i in common_anc_dict1 if i in ca1_desc_set][0]
+    if ca2 not in common_anc_dict2:
+        ca2 = [i for i in common_anc_dict2 if i in ca2_desc_set][0]
 
-        child_node_dict = extract_down_node_dict(child_id,node_dict1)
-        if child_node_dict:
-            child_leaf_set = get_leaf_set(child_node_dict)
-        else:
-            child_leaf_set = {child_id}
+    # get the node dict below ca1
+    if gt_set1:
+        indep_gt_set1 = po1.get_independent_inds(gt_set1) # oldest ids in gt_set1 s.t. none is descended from another
 
-        if not child_node_dict:
-            child_node_dict = {child_id : {child_id : 0}}
-            child_leaf_set = {child_id}
+        # one or no children of ca1? No information to evaluate background IBD
+        if len(indep_gt_set1) < 2:
+            return ca1
 
-        chrom_ibd_segs_dict = get_ibd_segs_between_sets(child_leaf_set, leaf_set2, ibd_seg_list)
-        merged_chrom_ibd_segs_dict = merge_ibd_segs(chrom_ibd_segs_dict)
-        merged_ibd_seg_lengths = get_segment_length_list(merged_chrom_ibd_segs_dict)
-        count = len(merged_ibd_seg_lengths)
-        L_tot = sum(merged_ibd_seg_lengths)
-
-        est_deg = infer_degree_generalized_druid(
-            leaf_set1 = child_leaf_set,
-            leaf_set2 = leaf_set2,
-            node_dict1 = child_node_dict,
-            node_dict2 = node_dict2,
-            L_merged_tot = L_tot,
-        )
-
-        adj_deg = est_deg - node_dict1[ca1][child_id]
-
-        if adj_deg < min_adj_deg:
-            min_adj_deg = adj_deg
-            safe_child = child_id
-        elif adj_deg == min_adj_deg and L_tot > L_tot_max:
-            safe_child = child_id
-
-        L_tot_max = max(L_tot, L_tot_max)
-
-        child_id_count_L_tot_list.append((child_id, count, L_tot))
-
-    # Assuming the degree is ca1_ca2_est_deg, find clades with very low or high IBD
-    drop_child_set = set()
-    for child_id,count,L_tot in child_id_count_L_tot_list:
-
-        if child_id == safe_child:
-            continue
-
-        child_node_dict = extract_down_node_dict(child_id,node_dict1)
-        if child_id in child_node_dict: # if it's an internal node
-            child_leaf_set = get_leaf_set(child_node_dict)
-        else:
-            child_leaf_set = {child_id}
-
-        # re-infer the degree between the common ancestors, leaving out child_id
-        # and their descendants so that the estimate is based on all other individuals
-        child_desc_set = po1.rel_dict[child_id]['desc'] | {child_id}
-        leave_one_out_leaf_set1 = leaf_set1 - child_desc_set
-
-        # get total length of IBD shared between leave-one-out set and po2
-        chrom_ibd_segs_dict = get_ibd_segs_between_sets(leave_one_out_leaf_set1, leaf_set2, ibd_seg_list)
-        merged_chrom_ibd_segs_dict = merge_ibd_segs(chrom_ibd_segs_dict)
-        merged_ibd_seg_lengths = get_segment_length_list(merged_chrom_ibd_segs_dict)
-        leave_one_out_L_tot = sum(merged_ibd_seg_lengths)
-
-        # get the node dict for the leave-one-out leaf set
-        leave_one_out_common_anc_dict1 = po1.get_common_ancestor_dict([*leave_one_out_leaf_set1], get_mrcas=True)
-        leave_one_out_common_anc1 = list({*leave_one_out_common_anc_dict1} & all_node_set1)[0]
-        leave_one_out_node_dict1 = get_node_dict_for_root(
-            root_id = leave_one_out_common_anc1,
+        node_dict1 = get_node_dict(
             ped_obj = po1,
+            rels = indep_gt_set1,
         )
-
-        # infer the degree between the common ancestor of the leave-one-out set and ca2
-        leave_one_out_ca1_ca2_est_deg = infer_degree_generalized_druid(
-            leaf_set1 = leave_one_out_leaf_set1,
-            leaf_set2 = leaf_set2,
-            node_dict1 = leave_one_out_node_dict1,
-            node_dict2 = node_dict2,
-            L_merged_tot = leave_one_out_L_tot,
+        node_dict1 = extract_down_node_dict(
+            node = ca1,
+            node_dict = node_dict1,
         )
+    else:
+        raise Exception("ca1 has no descendants.")
 
-        # adjust to get the degree between ca1 and ca2
-        if leave_one_out_common_anc1 == ca1:
-            ca1_ca2_est_deg = leave_one_out_ca1_ca2_est_deg
+
+    # one or no children of ca1? No information to evaluate background IBD
+    if len(node_dict1[ca1]) < 2:
+        return ca1
+
+    if gt_set2:
+        indep_gt_set2 = po2.get_independent_inds(gt_set2) # oldest ids in gt_set2 s.t. none is descended from another
+
+        if len(indep_gt_set2) == 1:
+            desc_id = [*indep_gt_set2][0]
+            deg = po2.rels[desc_id][ca2][0]
+            node_dict2 = {ca2 : {desc_id : deg}}
         else:
-            ca1_ca2_est_deg = leave_one_out_ca1_ca2_est_deg - po1.rels[ca1][leave_one_out_common_anc1][1]
+            node_dict2 = get_node_dict(
+                ped_obj = po2,
+                rels = indep_gt_set2,
+            )
+            node_dict2 = extract_down_node_dict(
+                node = ca2,
+                node_dict = node_dict2,
+            )
+    elif ca2 > 0:
+        indep_gt_set2 = {ca2}
+        node_dict2 = {ca2 : {ca2 : 0}}
+    else:
+        raise Exception("ca2 has no descendants.")
 
-        # get the degree between child_id and ca2, and make a combined node dict 
-        # for the background IBD hypothesis test
-        deg = ca1_ca2_est_deg + node_dict1[ca1][child_id]
-        deg1 = int(np.floor(deg/2))
-        deg2 = int(np.ceil(deg/2))
-        node_dict = {root_id : {child_id : deg1, ca2 : deg2}}
-        node_dict.update(child_node_dict)
-        node_dict.update(node_dict2)
+    # find exempt child id
+    desc_set_dict = {}
+    L_tot_max = 0
+    exempt_child_id = None
+    exempt_desc_set = None
+    exempt_node_dict = None
+    for child_id in node_dict1[ca1]:
+        desc_deg_dict = get_desc_deg_dict(
+            anc_id = child_id,
+            node_dict = node_dict1,
+        )
+        desc_set = {*desc_deg_dict}
+        desc_set &= indep_gt_set1
 
-        # Get mean and variance of total IBD shared between descendants of child ID and po2
-        # always compute with 1 common anc because then deg = up + down
-        log_prob_ibd = get_log_prob_ibd(node_dict, root_id, child_id, ca2, num_common_ancs=1)
-        prob_ibd = np.exp(log_prob_ibd)
-        mean = prob_ibd * GENOME_LENGTH
-        var,El,El2 =  get_var_total_length_approx(node_dict, child_leaf_set, leaf_set2, root_id, child_id, ca2, num_common_ancs = 1)
-        
-        if mean > 0 and El > 0:
-            expected_count = mean / El
-        else:
-            expected_count = 0
+        if child_id > 0:
+            desc_set |= {child_id}
 
-        # Get the background IBD pvalue
-        pval = get_background_test_pval_gamma(L_tot,mean,var)
+        desc_set_dict[child_id] = desc_set
 
-        if pval < drop_threshold:
-            drop_child_set.add(child_id)
+        chrom_seg_dict = get_ibd_segs_between_sets(desc_set, indep_gt_set2, ibd_seg_list)
+        merged_chrom_seg_dict = merge_ibd_segs(chrom_seg_dict)
+        merged_seg_lengths = get_segment_length_list(merged_chrom_seg_dict)
+        L_tot = sum(merged_seg_lengths)
 
-    new_ca1 = copy.copy(ca1)
-    if drop_child_set and (len(child_id_set - drop_child_set) == 1):
-        # if we rejected the null and exactly one child was not rejected, set them as the new ca1
-        new_ca1 = (child_id_set - drop_child_set).pop()
-    elif drop_child_set:
-        # otherwise, if there are several children for whom we did not reject the null,
-        # test whether the remaining children have a common ancestor other than ca1 who can be the new ca1
-        # if not, return None
+        if L_tot > L_tot_max:
+            L_tot_max = L_tot
+            exempt_child_id = child_id
+            exempt_desc_set = desc_set
+            exempt_node_dict = extract_down_node_dict(
+                node = exempt_child_id,
+                node_dict = node_dict1,
+            )
 
-        # get all direct biological children of ca1 who eithe are, or are ancestral to an un-dropped descendant
-        biological_child_id_set = {*po1.down_pedigree_dict[ca1][2:]} # biological children of ca1
-        ancestral_biological_child_id_set = set() # ancestral to true ibd-sharing descendants
-        for child_id in child_id_set - drop_child_set:
-            ancestral_biological_child_id_set |= po1.rel_dict[child_id]['anc'] & biological_child_id_set
-            ancestral_biological_child_id_set |= {child_id} & biological_child_id_set
-        partner_id_set = set()
+    # create a new node dict by removing exempt_child_id and
+    # their descendants from node_dict1
+    leave_one_out_node_dict1 = {}
+    for child_id in node_dict1[ca1]:
+        if child_id != exempt_child_id:
+            child_node_dict = extract_down_node_dict(
+                node = child_id,
+                node_dict = node_dict1,
+            )
+            leave_one_out_node_dict1.update(child_node_dict)
+    leave_one_out_node_dict1[ca1] = {i : d for i,d in node_dict1[ca1].items() if i != exempt_child_id}
 
-        # get all partners ca1 who are parents of children in ancestral_biological_child_id_set
-        for biological_child_id in ancestral_biological_child_id_set:
-            partner_id_set |= {i for i in po1.up_pedigree_dict[biological_child_id][2:] if i is not None}
-        partner_id_set -= {ca1}
+    # get indep descs of ca1 who are not descs of exempt_child_id
+    leave_one_out_gt_set1 = set.union(*[v for i,v in desc_set_dict.items() if i != exempt_child_id])
 
-        if len(partner_id_set) == 1: # if more than one partner, then the common ancestor can only be ca1
-            # but have to first check that no dropped child is descended from that partner
-            dropped_child_from_partner = False
-            for child_id in drop_child_set:
-                if partner_id_set & po1.rel_dict[child_id]['anc']:
-                    dropped_child_from_partner = True
-            if not dropped_child_from_partner: # partner is valid common ancestor.
-                new_ca1 = partner_id_set.pop()
-            else: # some background IBD child is descended from the partner. So not a valid common ancestor
-                return None
-        else: # true IBD-carrying descendants of ca1 only have ca1 as a common ancestor
-            return None # we could continue to check background IBD in these descendants, but it's hard. for now, return None.
+    # get L_tot shared between leave_one_out_gt_set1 and leaf_set2
+    chrom_seg_dict = get_ibd_segs_between_sets(leave_one_out_gt_set1, indep_gt_set2, ibd_seg_list)
+    merged_chrom_seg_dict = merge_ibd_segs(chrom_seg_dict)
+    merged_seg_lengths = get_segment_length_list(merged_chrom_seg_dict)
+    L_tot = sum(merged_seg_lengths)
 
-    if new_ca1 == ca1: # if we did not drop any descendants
-        return new_ca1
-    else: # if we found a new potential common ancestor, check for background IBD below them
+    # find the DRUID estimate of the dergee between ca1 and ca2
+    # based on only the exempt data
+    druid_deg = infer_degree_generalized_druid(
+        leaf_set1 = exempt_desc_set,
+        leaf_set2 = indep_gt_set2,
+        node_dict1 = exempt_node_dict,
+        node_dict2 = node_dict2,
+        L_merged_tot = L_tot_max,
+    )
+
+    # find the adjusted degree through ca1
+    child_deg = po1.rels[exempt_child_id][ca1][0]
+    adj_deg = druid_deg - child_deg
+
+    # create a node dict that approximates the degree between ca1 and ca2
+    min_id1 = get_min_id(leave_one_out_node_dict1)
+    min_id2 = get_min_id(node_dict2)
+    min_id = min(min_id1, min_id2) - 1
+    root_id = min(-1, min_id)  # id lower than any value in either node_dict
+    
+    adj_deg1 = int(np.floor(adj_deg/2))
+    adj_deg2 = int(np.ceil(adj_deg/2))
+    node_dict = {root_id : {ca1 : adj_deg1, ca2 : adj_deg2}}
+    node_dict.update(leave_one_out_node_dict1)
+    node_dict.update(node_dict2)
+
+    log_prob_ibd = get_log_prob_ibd(
+        node_dict = node_dict,
+        root_id = root_id,
+        left_common_anc = ca1,
+        right_common_anc = ca2,
+        num_common_ancs = 1,
+    )
+    prob_ibd = np.exp(log_prob_ibd)
+    mean = prob_ibd * GENOME_LENGTH
+    var,El,El2 =  get_var_total_length_approx(
+        node_dict = node_dict,
+        indep_leaf_set1 = leave_one_out_gt_set1,
+        indep_leaf_set2= indep_gt_set2,
+        root_id = root_id,
+        left_common_anc = ca1,
+        right_common_anc = ca2,
+        num_common_ancs = 1
+    )
+
+    pval = get_background_test_pval_gamma(L_tot,mean,var) # Get the background IBD pvalue
+
+    if pval < alpha:
         return drop_background_ibd(
-            ca1 = new_ca1,
+            ca1 = exempt_child_id,
             ca2 = ca2,
             po1 = po1,
             po2 = po2,
             ibd_seg_list = ibd_seg_list,
-            drop_threshold = drop_threshold,
-            seen_ca1_set = seen_ca1_set,
+            alpha = alpha,
         )
+    else:
+        return ca1
 
 
 def check_pred_deg_likes(

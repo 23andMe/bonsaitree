@@ -676,7 +676,7 @@ def test_get_related_sets():
 
 
 # def test_get_open_ancestor_set()
-#   No test for his. It is a subroutine of get_open_ancestor_set_for_leaves()
+#   No test for this. It is a subroutine of get_open_ancestor_set_for_leaves()
 
 
 # def test_check_pred_deg_likes():
@@ -1186,7 +1186,7 @@ def test_drop_background_ibd():
         po1 = po1,
         po2 = po2,
         ibd_seg_list = ibd_seg_list,
-        drop_threshold = 0.05,
+        alpha = 0.01,
     )
 
     assert(new_ca1 == -3)

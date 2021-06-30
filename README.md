@@ -117,3 +117,34 @@ WARNING:
 * **drop_ibd_alpha**
     -   default = 1e-4
     -   p-value threshold for hypothesis test for dropping background IBD.
+
+
+
+Age and IBD-sharing distributions
+---------
+Bonsai uses empirically determined means and standard deviations for IBD sharing and age differences that are used for predicting pairwise relationships. The means and standard deviations can be found in the `bonsaitree.models` directory. IBD sharing moments can be found in `distn_dict.json`, which contains a json serialized dictionary of the following form
+
+```
+{
+    rel_tuple : {
+        summary_stat : {
+            1 : [IBD1_mean, IBD1_std_dev],
+            2 : [IBD2_mean, IBD2_std_dev],
+        }
+        ...
+    }
+    ...
+}
+```
+
+Here, `rel_tuple` is a tuple representing a relationship between a pair of individuals (`i` and `j`). `rel_tuple` is of the form `(up, down, num_ancs)`, where `up` is the number of meioses between individual `i` and their most recent common ancestor(s) with `j`, `down` is the number of meioses between `j` and their most recent common ancestor(s) with `i` and `num_ancs` is the number of most recent common ancestors between `i` and `j` (either 1 or 2). To reduce the computational burden of fitting distributions, Bonsai also accepts tuples of the form `(up+down, num_ancs)`, or a mixture of the two formats. The `summary_stat` is either `count` or `total_len`. The `summary_stat` is either `count` or `total_len`, and stores the mean and standard deviation of the statistic for both IBD1 (`1`) and IBD2 (`2`). 
+
+Means and standard deviations for pairwise age differences can be found in `age_diff_moments.json`, which contains a json serialized dictionary of the following form:
+
+```
+{
+    rel_tuple : [age_diff_mean, age_diff_std_dev]
+    ...
+}
+```
+where `rel_tuple` is the tuple denoting the relationship between a pair of indiviudals `i` and `j`, which is of the form described previously. The quantities `age_diff_mean` and `age_diff_std_dev` are the mean and standard deviation of the difference `age(j) - age(i)`.
