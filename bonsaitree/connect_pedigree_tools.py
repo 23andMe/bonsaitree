@@ -146,11 +146,27 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
     node_dict = {root_id : {ca1 : deg1, ca2 : deg2}}
     node_dict.update(node_dict1)
     node_dict.update(node_dict2)
-    log_prob_ibd = get_log_prob_ibd(node_dict, root_id, ca1, ca2, num_common_ancs=1) # always compute with 1 common anc because then deg = up + down
+    log_prob_ibd = get_log_prob_ibd(
+        node_dict = node_dict, 
+        root_id = root_id, 
+        left_common_anc = ca1, 
+        right_common_anc = ca2, 
+        num_common_ancs = 1, # always compute with 1 common anc because then deg = up + down
+        left_indep_leaf_set = indt_gt_desc_set1,
+        right_indep_leaf_set = indt_gt_desc_set2,
+    ) 
     prob_ibd = np.exp(log_prob_ibd)
 
     mean = prob_ibd * GENOME_LENGTH
-    var,El,El2 =  get_var_total_length_approx(node_dict, indt_gt_desc_set1, indt_gt_desc_set2, root_id, ca1, ca2, num_common_ancs = 1)
+    var,El,El2 =  get_var_total_length_approx(
+        node_dict, 
+        indt_gt_desc_set1, 
+        indt_gt_desc_set2, 
+        root_id, 
+        ca1, 
+        ca2, 
+        num_common_ancs = 1,
+    )
 
     expected_count = mean / El
 
@@ -933,6 +949,8 @@ def drop_background_ibd(
         left_common_anc = ca1,
         right_common_anc = ca2,
         num_common_ancs = 1,
+        left_indep_leaf_set = leave_one_out_gt_set1,
+        right_indep_leaf_set = indep_gt_set2,
     )
     prob_ibd = np.exp(log_prob_ibd)
     mean = prob_ibd * GENOME_LENGTH
@@ -943,7 +961,7 @@ def drop_background_ibd(
         root_id = root_id,
         left_common_anc = ca1,
         right_common_anc = ca2,
-        num_common_ancs = 1
+        num_common_ancs = 1,
     )
 
     pval = get_background_test_pval_gamma(L_tot,mean,var) # Get the background IBD pvalue

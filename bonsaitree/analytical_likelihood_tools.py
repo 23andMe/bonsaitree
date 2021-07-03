@@ -70,20 +70,20 @@ def get_log_prob_ibd(
     left_common_anc: int,
     right_common_anc: int,
     num_common_ancs: int,
+    left_indep_leaf_set : Set[int],
+    right_indep_leaf_set : Set[int],
 ) -> float:
     """
-    Compute the log probability that an IBD segment is observed at a locus where
-    the ibd segment arose in root_id and is observed between at least one descendant
-    of left_common_anc and at least one descendant of right_common_anc.
+    Compute the log probability that an IBD segment is observed at a locus where the ibd segment arose in root_id
+    and is observed between at least one descendant of left_common_anc and at least one descendant of right_common_anc.
     Args:
         node_dict : a dict of the form { node : {desc1 : deg1, desc2 : deg2, ....} }
                     node_dict skips omits nodes that are ancestral to only one person.
         root_id : ID in which the IBD segment arose.
         left_common_anc: common ancestor of a clade.
         right_common_anc: common ancestor of a clade.
-        num_common_ancs: number of common ancestors (including root_id and possibly a spouse)
-                         in which IBD semgments observed in the descendants of left_common_anc
-                         and right_common_anc may have arisen.
+        num_common_ancs: number of common ancestors (including root_id and possibly a spouse) in which IBD semgments observed
+            in the descendants of left_common_anc and right_common_anc may have arisen.
     """
     left_num_generations = node_dict[root_id][left_common_anc]
     right_num_generations = node_dict[root_id][
@@ -91,7 +91,7 @@ def get_log_prob_ibd(
     ]  # Number of generations between the root (founder) and the right common ancestor.
 
     if left_common_anc in node_dict:
-        left_absence_dict = {desc: False for desc in node_dict[left_common_anc]}
+        left_absence_dict = {desc: False for desc in left_indep_leaf_set}
         left_log_prob_tuple = get_ibd_pattern_log_prob(
             node=left_common_anc,
             node_dict=node_dict,
@@ -101,7 +101,7 @@ def get_log_prob_ibd(
         left_log_prob_tuple = (0, -INF)
 
     if right_common_anc in node_dict:
-        right_absence_dict = {desc: False for desc in node_dict[right_common_anc]}
+        right_absence_dict = {desc: False for desc in right_indep_leaf_set}
         right_log_prob_tuple = get_ibd_pattern_log_prob(
             node=right_common_anc,
             node_dict=node_dict,
@@ -111,26 +111,21 @@ def get_log_prob_ibd(
         right_log_prob_tuple = (0, -INF)
 
     left_log_prob_anc = -left_num_generations * np.log(2)  # Pr(Segment passedto the left common ancestor)
-    left_log_prob_not_anc = logsumexp([0, left_log_prob_anc], b=[1, -1])  # Pr(Segment not passed to the left common ancestor)
     right_log_prob_anc = -right_num_generations * np.log(2)  # Pr(Segment passed on to the right common ancestor)
-    right_log_prob_not_anc = logsumexp([0, right_log_prob_anc], b=[1, -1])  # Pr(Segment not passed to the right common ancestor).
 
-    left_log_prob_0 = (left_log_prob_tuple[0] + left_log_prob_not_anc)  # Pr(data | left_anc = False) Pr(left_anc = False)
-    left_log_prob_1 = (left_log_prob_tuple[1] + left_log_prob_anc)  # Pr(data | left_anc = True) Pr(left_anc = True)
-    right_log_prob_0 = right_log_prob_tuple[0] + right_log_prob_not_anc
-    right_log_prob_1 = right_log_prob_tuple[1] + right_log_prob_anc
+    left_log_prob_not_obs = left_log_prob_tuple[1] # Pr(Allele not observed given passed to ancestor)
+    left_log_prob_obs = logsumexp([0, left_log_prob_not_obs], b=[1,-1]) # Pr(allele obs given passed to ancestor)
 
-    left_log_prob = logsumexp([left_log_prob_0, left_log_prob_1])  # Pr(Segment not passed to any left leaf)
-    right_log_prob = logsumexp([right_log_prob_0, right_log_prob_1])
+    right_log_prob_not_obs = right_log_prob_tuple[1] # Pr(Allele not observed given passed to ancestor)
+    right_log_prob_obs = logsumexp([0, right_log_prob_not_obs], b=[1,-1]) # Pr(allele obs given passed to ancestor)
 
-    log_prob_no_ibd_1_allele = logsumexp(
-        [left_log_prob, right_log_prob, left_log_prob + right_log_prob], b=[1, 1, -1]
-    )  # Pr(allele is not seen IBD among two clades)
-    log_prob_no_ibd = (
-        2 * num_common_ancs * log_prob_no_ibd_1_allele
-    )  # Pr(No IBD due to any of the 2 * num_ancs alleles from the ancestors)
+    log_prob_ancs_ibd = left_log_prob_anc + right_log_prob_anc
 
-    return logsumexp([0, log_prob_no_ibd], b=[1, -1])  # Pr(IBD due to some allele is seen among the two clades)
+    log_prob_ibd_1_allele = log_prob_ancs_ibd + left_log_prob_obs + right_log_prob_obs
+
+    log_prob_ibd = np.log(2 * num_common_ancs) + log_prob_ibd_1_allele
+
+    return log_prob_ibd
 
 
 def get_lambda_list(
@@ -140,7 +135,6 @@ def get_lambda_list(
     root_id: int,
     left_common_anc: int,
     right_common_anc: int,
-    num_common_ancs: int,
 ) -> List[float]:
     """
     Get parameters (1/mean) of the exponential distributions 
@@ -154,8 +148,6 @@ def get_lambda_list(
         root_id : common ancestor of indep_leaf_set1 and indep_leaf_set2
         left_common_anc : common ancestor of indep_leaf_set1
         right_common_anc : common ancestor of indep_leaf_set2
-        num_common_ancs: number of common ancestors (including root_id and maybe 
-                         their spouse) of indep_leaf_set1 and indep_leaf_set2
     """
     left_anc_to_desc_deg_dict = get_desc_deg_dict(left_common_anc, node_dict)
     right_anc_to_desc_deg_dict = get_desc_deg_dict(right_common_anc, node_dict)
@@ -170,8 +162,6 @@ def get_lambda_list(
         + root_to_right_anc_deg
         + left_deg
         + right_deg
-        + 1
-        - num_common_ancs
         for left_deg in left_anc_to_desc_deg_dict.values()
         for right_deg in right_anc_to_desc_deg_dict.values()
     ]
@@ -185,7 +175,6 @@ def get_expected_seg_length_and_squared_length_for_leaf_subset(
     root_id: int,
     left_common_anc: int,
     right_common_anc: int,
-    num_common_ancs: int,
 ) -> Tuple[float, float]:
     """
     Get the expected length of a segment shared IBD between clade1 and 
@@ -199,8 +188,6 @@ def get_expected_seg_length_and_squared_length_for_leaf_subset(
         root_id : common ancestor of indep_leaf_set1 and indep_leaf_set2
         left_common_anc : common ancestor of indep_leaf_set1
         right_common_anc : common ancestor of indep_leaf_set2
-        num_common_ancs: number of common ancestors (including root_id and 
-                         maybe their spouse) of indep_leaf_set1 and indep_leaf_set2
     """
     lambda_list = get_lambda_list(
         node_dict,
@@ -209,7 +196,6 @@ def get_expected_seg_length_and_squared_length_for_leaf_subset(
         root_id,
         left_common_anc,
         right_common_anc,
-        num_common_ancs,
     )
     num_lambdas = len(lambda_list)
     expected_length = 0
@@ -248,7 +234,13 @@ def get_var_total_length_approx(
     """
 
     log_prob_ibd = get_log_prob_ibd(
-        node_dict, root_id, left_common_anc, right_common_anc, num_common_ancs
+        node_dict, 
+        root_id, 
+        left_common_anc, 
+        right_common_anc, 
+        num_common_ancs,
+        indep_leaf_set1,
+        indep_leaf_set2,
     )
 
     num_leaves1 = len(indep_leaf_set1)
@@ -302,11 +294,10 @@ def get_var_total_length_approx(
         root_id=root_id,
         left_common_anc=left_common_anc,
         right_common_anc=right_common_anc,
-        num_common_ancs=num_common_ancs,
     )
 
     return (
-        2 * np.exp(log_prob_ibd) * GENOME_LENGTH * expected_squared_len / expected_len,
+        np.exp(log_prob_ibd) * GENOME_LENGTH * expected_squared_len / expected_len,
         expected_len,
         expected_squared_len,
     )

@@ -32,7 +32,7 @@ Inputs
 ------
 The required inputs to Bonsai are listed below. Additional parameters can be specified by the user. See [Additional Bonsai Parameters](#BonsaiParameters).
 * `ibd_seg_list`: (List of lists) A list of IBD segments of the form `[[id1, id2, chrom, start, end, is_full, seg_cm]]`, where the elements are of the following types:
-    - `id`,`id2`: (int) IDs of the individuals sharing the segment.
+    - `id`,`id2`: (int) IDs of the individuals sharing the segment. Note: Bonsai currently allows only positive integers for genotyped ids. The ungenotyped nodes in a pedigree will be negative integers.
     - `chrom`: (string) Chromosome on which the segment is found.
     - `start`: (float) Physical start position of the segment.
     - `end`: (float) Physical end position of the segment.
@@ -41,6 +41,12 @@ The required inputs to Bonsai are listed below. Additional parameters can be spe
 * `bio_info`: (List of dicts) A list of dicts containing sex and age information for genotyped individuals. `bio_info` has the form [{'genotype_id' : int, 'sex' : 'M'/'F', 'age' : int}].
 * `focal_id`: (Optional, int) To force the pedigree builder to start with a specified individual. Pedigrees can be different if they use different starting individuals. This ensures that the individual of interest is placed and it can improve the estimated relationships between them and their close relatives.
 
+An example set of inputs can be found in `tests/fixtures/4gens_2offspring_0.1probhalf.json`. This is a very large pedigree. To see the contents of this file:
+```
+import json
+input_data_path = 'tests/fixtures/4gens_2offspring_0.1probhalf.json'
+input_data = json.loads(open(input_data_path).read())
+```
 
 
 Output
@@ -118,9 +124,77 @@ WARNING:
     -   default = 1e-4
     -   p-value threshold for hypothesis test for dropping background IBD.
 
+IBD inference
+---------
+IBD can be inferred using any method. However, Bonsai was developed using an in-house method for IBD inference that estimates IBD from unphased data ([Henn et al., 2012](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0034267)). A publicly available method that behaves very similarly is Ibis ([Seidman et al., 2020](https://github.com/williamslab/ibis)). The pre-trained distributions that come packaged with Bonsai have been tested with Ibis.  Code for converting Ibis output to Bonsai input is included with Bonsai and an example of usage is shown below.
 
 
-Age and IBD-sharing distributions
+Example usage
+---------
+The following is an example of how to read segment data from Ibis and build a Bonsai tree. Running Ibis will generate an output directory of `.seg` files, each of which contains IBD segments inferred for a group of individuals for a given chromosome (e.g., `1.seg`, `2.seg`, ..., `22.seg`). Let's suppose the directory is called `ibis_output_dir`. Bonsai contains a script for reading Ibis output and converting it to a list of segments that can be used as input for Bonsai. To load the Ibis segments in Python:
+```
+from bonsaitree.utils import read_ibis_ibd
+
+ibd_seg_list = read_ibis_ibd('ibis_output_dir')
+```
+This creates a list `ibd_seg_list` of tuples, each of which is an IBD segment. We can inspect the first three elements of this list as follows:
+```
+ibd_seg_list[:3]
+```
+which will produce something like
+```
+[
+(1, 2, '22',  1_502_003, 50_152_011, False, 72.3)
+(1, 7, '10',    414_217,  1_222_982, False, 30.9)
+(1, 2, '22', 10_928_382, 49_100_112, True,  50.1)
+]
+```
+Each tuple represents an IBD segment of the form
+```
+(id1, id2, 'chrom', phys_start, phys_end, is_full, len_in_cm)
+```
+where the ids are the ones you chose when computing the IBD in Ibis.
+
+In addition to the `ibd_seg_list`, Bonsai has one other required input, `bio_info`, and an optional input `focal_id` (along with other optional parameters discussed above). The `bio_info` object is a list of dicts of the following form:
+```
+bio_info = [
+    {'genotype_id' : id, 'age' : age, 'sex' : sex},
+    ...
+]
+```
+and it should contain one entry for each individual in the pedigree. The `focal_id` allows you to specify a particular individual for whom you wish to build the pedigree. If `focal_id` is specified, the first individual placed will be `focal_id` and the resulting pedigree is guaranteed to contain this individual. If `focal_id` is left unspecified, Bonsai will choose a focal person to start with. This person is the individual who shares the most IBD on average with all others.
+
+Bonsai can then be run using
+```
+from bonsaitree import bonsai
+
+result = bonsai.build_pedigree(ibd_seg_list, bio_info, focal_id=focal_id)
+```
+The result is a dictionary containing many objects. Perhaps the most useful is `ped_obj`. This is an instance of the `PedigreeObject` class and it contains the inferred pedigree topology, along with functions that allow you to perform various computations on the inferred pedigree. If you just want the pedigree topology, it can be found as follows:
+```
+ped_obj = result['ped_obj']
+ped_obj.up_pedigree_dict = {
+    id : (sex, age, parent1_id, parent2_id),
+    ...
+}
+```
+which has one entry for every node in the pedigree. This object specifies the full topology of the pedigree. Parents are not ordered by sex, as this sex is generally unknown for inferred nodes. Additional operations that can be computed using the pedigree object include 
+1. Finding the relationship between a pair of nodes (say, `id1` and `id2`):
+
+        ped_obj.rels[id1][id2]
+
+2. Finding all individuals on the path from `id1` to `id2`:
+
+       ped_obj.get_connecting_path_set(id1,id2)
+
+3. Checking if an individual is a leaf node or a founder node
+
+        ped_obj.is_leaf(id)
+        ped_obj.is_founder(id)
+
+Many more operations are available. Type `dir(ped_obj)` for a list of attributes and methods.
+
+Updating age and IBD-sharing distributions
 ---------
 Bonsai uses empirically determined means and standard deviations for IBD sharing and age differences that are used for predicting pairwise relationships. The means and standard deviations can be found in the `bonsaitree.models` directory. IBD sharing moments can be found in `distn_dict.json`, which contains a json serialized dictionary of the following form
 
