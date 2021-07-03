@@ -516,11 +516,9 @@ def test_get_lambda_list():
         root_id = 1,
         left_common_anc = 2,
         right_common_anc = 3,
-        num_common_ancs = num_common_ancs,
     )
-    raw_diffs = [7, 5, 8, 6]
-    adjusted_diffs = [(d - num_common_ancs + 1) for d in raw_diffs]
-    lambda_set = {d/100 for d in adjusted_diffs}
+    diffs = [7, 5, 8, 6]
+    lambda_set = {d/100 for d in diffs}
     assert(lambda_set == {*lambda_list})
 
 
@@ -530,8 +528,32 @@ def test_get_log_prob_ibd():
     left_common_anc = 2
     right_common_anc = 3
     num_common_ancs = 1
-    log_prob = get_log_prob_ibd(node_dict,root_id,left_common_anc,right_common_anc,num_common_ancs)
-    assert(log_prob == np.log(1 - 9/16))
+    log_prob = get_log_prob_ibd(
+        node_dict = node_dict,
+        root_id = root_id,
+        left_common_anc = left_common_anc,
+        right_common_anc = right_common_anc,
+        num_common_ancs = num_common_ancs,
+        left_indep_leaf_set = {2},
+        right_indep_leaf_set = {3},
+    )
+    assert log_prob == np.log(0.5)
+
+    node_dict = {1 : {2 : 3 , 3 : 1} }
+    root_id = 1
+    left_common_anc = 2
+    right_common_anc = 3
+    num_common_ancs = 1
+    log_prob = get_log_prob_ibd(
+        node_dict = node_dict,
+        root_id = root_id,
+        left_common_anc = left_common_anc,
+        right_common_anc = right_common_anc,
+        num_common_ancs = num_common_ancs,
+        left_indep_leaf_set = {2},
+        right_indep_leaf_set = {3},
+    )
+    assert log_prob == np.log(1/8)
 
     node_dict = {1 : {2 : 3 , 3 : 1} , 2 : {4 : 1, 5 : 1} , 3 : {6 : 2 , 7 : 1}}
     root_id = 1
@@ -544,8 +566,10 @@ def test_get_log_prob_ibd():
         left_common_anc = left_common_anc,
         right_common_anc = right_common_anc,
         num_common_ancs = num_common_ancs,
+        left_indep_leaf_set = {4,5},
+        right_indep_leaf_set = {6,7},
     )
-    assert(round(log_prob,2) == -2.85)
+    assert log_prob == np.log(15/256)
 
     node_dict = {1 : {2 : 2, 3 : 1}, 2 : {4 : 2, 5 : 1}, 3 : {6 : 3, 7: 1}}
     num_common_ancs = 2
@@ -555,9 +579,10 @@ def test_get_log_prob_ibd():
         left_common_anc = 2,
         right_common_anc = 3,
         num_common_ancs = num_common_ancs,
+        left_indep_leaf_set = {4,5},
+        right_indep_leaf_set = {6,7},
     )
-    true_log_prob = np.log(1 - (1 - 0.0439453125) ** (2*num_common_ancs))
-    assert(round(log_prob,5) == round(true_log_prob,5))
+    assert round(log_prob,4) == round(np.log(45/256),4)
 
 
 def test_get_expected_seg_length_and_squared_length_for_leaf_subset():
@@ -575,7 +600,6 @@ def test_get_expected_seg_length_and_squared_length_for_leaf_subset():
         root_id = root_id,
         left_common_anc = left_common_anc,
         right_common_anc = right_common_anc,
-        num_common_ancs = num_common_ancs
     )
     assert(round(EL,2) == 27.97)
     assert(round(EL2,2) == 520.82)
@@ -595,6 +619,8 @@ def test_get_var_total_length_approx():
         left_common_anc = left_common_anc,
         right_common_anc = right_common_anc,
         num_common_ancs = num_common_ancs,
+        left_indep_leaf_set = indep_leaf_set1,
+        right_indep_leaf_set = indep_leaf_set2,
     )
     var_full,El,El2 = get_var_total_length_approx(
         node_dict = node_dict,
@@ -605,7 +631,7 @@ def test_get_var_total_length_approx():
         right_common_anc = right_common_anc,
         num_common_ancs = num_common_ancs,
     )
-    assert(round(var_full,2) == 3431.92)
+    assert(round(var_full,2) == 1730.75)
 
 
 def test_get_log_like_total_length_normal():
