@@ -173,12 +173,9 @@ result = bonsai.build_pedigree(ibd_seg_list, bio_info, focal_id=focal_id)
 The result is a dictionary containing many objects. Perhaps the most useful is `ped_obj`. This is an instance of the `PedigreeObject` class and it contains the inferred pedigree topology, along with functions that allow you to perform various computations on the inferred pedigree. If you just want the pedigree topology, it can be found as follows:
 ```
 ped_obj = result['ped_obj']
-ped_obj.up_pedigree_dict = {
-    id : (sex, age, parent1_id, parent2_id),
-    ...
-}
+ped_obj.up_pedigree_dict
 ```
-which has one entry for every node in the pedigree. This object specifies the full topology of the pedigree. Parents are not ordered by sex, as this sex is generally unknown for inferred nodes. Additional operations that can be computed using the pedigree object include 
+The `up_pedigree_dict` is a dictionary mapping each node id in the pedigree to its sex, age, parent1 and parent2 (see the list of outputs above). It has one entry for every node in the pedigree. This object specifies the full topology of the pedigree. Parents are not ordered by sex, as this sex is generally unknown for inferred nodes. Additional operations that can be computed using the pedigree object include 
 1. Finding the relationship between a pair of nodes (say, `id1` and `id2`):
 
         ped_obj.rels[id1][id2]
