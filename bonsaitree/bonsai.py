@@ -84,6 +84,9 @@ def build_pedigree(
         drop_ibd_alpha : p-value threshold for hypothesis test of dropping background IBD
     """
 
+    # validate input
+    validate_input(focal_id, ibd_seg_list, bio_info)   
+
     if ibd_threshold:
         ibd_seg_list = [s for s in ibd_seg_list if s[-1] >= ibd_threshold]
 
@@ -981,3 +984,62 @@ def replace_validated_nodes(
         unplaced_validated_node_set |= {uid for uid in validated_node_set - placed_validated_node_set if (not (isinstance(uid,int) and uid < 0)) and matched_id_dict_old_to_new.get(uid,float('inf')) not in new_ped_obj.all_ids}
 
     return new_ped_obj,unplaced_validated_node_set,total_placed_validated_node_set,matched_id_dict_new_to_old,matched_id_dict_old_to_new
+
+
+def validate_input(focal_id, ibd_seg_list, bio_info):
+    validate_focal_id(focal_id)
+    validate_ibd_seg_list(ibd_seg_list)
+    validate_bio_info(bio_info)
+
+
+def validate_focal_id(focal_id):
+    if isinstance(focal_id, int):
+        if focal_id < 0:
+            raise Exception("Focal ID must be a positive integer.")
+    else:
+        raise Exception("Focal ID must be a positive integer.")
+
+
+def validate_ibd_seg_list(ibd_seg_list):
+    for idx,seg in enumerate(ibd_seg_list):
+        validate_seg(seg,idx)
+
+
+def validate_seg(seg,idx):
+    # [id1, id2, chromosome, start, end, is_full_ibd, seg_cm]
+    if not isinstance(seg[0], int):
+        raise Exception("ibd_seg_list[{}][0] must be an int".format(idx))
+    elif seg[0] < 0:
+        raise Exception("ibd_seg_list[{}][0] must be positive".format(idx))
+    if not isinstance(seg[1], int):
+        raise Exception("ibd_seg_list[{}][1] must be an int".format(idx))
+    elif seg[1] < 0:
+        raise Exception("ibd_seg_list[{}][1] must be positive".format(idx))
+    if not isinstance(seg[2], str):
+        raise Exception("ibd_seg_list[{}][2] must be a str ('1', '2', ..., 'X')".format(idx))
+    if not (isinstance(seg[3], int) or isinstance(seg[3], float)):
+        raise Exception("ibd_seg_list[{}][3] must be an int or a float".format(idx))
+    if not (isinstance(seg[4], int) or isinstance(seg[4], float)):
+        raise Exception("ibd_seg_list[{}][4] must be an int or a float".format(idx))
+    if not isinstance(seg[5], bool):
+        raise Exception("ibd_seg_list[{}][5] must be an int or a bool".format(idx))
+    if not (isinstance(seg[6], int) or isinstance(seg[6], float)):
+        raise Exception("ibd_seg_list[{}][6] must be an int or a float".format(idx))
+
+def validate_bio_info(bio_info):
+    for idx,bio in enumerate(bio_info):
+        validate_bio(bio,idx)
+
+
+def validate_bio(bio,idx):
+    if {*bio} != {'genotype_id', 'age', 'sex'}:
+        raise Exception("bio_info[{}] keys must be 'genotype_id', 'age', and 'sex'".format(idx))
+    if not isinstance(bio['genotype_id'], int):
+        raise Exception("bio_info[{}]['genotype_id'] must be an int".format(idx))
+    else:
+        if bio['genotype_id'] < 0:
+            raise Exception("bio_info[{}]['genotype_id'] must be positive".format(idx))
+    if not (isinstance(bio['age'], int) or isinstance(bio['age'], float)):
+        raise Exception("bio_info[{}]['age'] must be int or float".format(idx))
+    if not bio['sex'] in {'M','F'}:
+        raise Exception("bio_info[{}]['sex'] must be 'M' or 'F'".format(idx))
