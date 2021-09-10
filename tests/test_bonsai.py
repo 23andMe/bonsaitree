@@ -14,6 +14,7 @@ from ..bonsaitree import utils
 from ..bonsaitree import distributions
 from ..bonsaitree import point_predictor
 
+from ..bonsaitree.bonsai import build_pedigree
 from ..bonsaitree.copytools import deepcopy
 from ..bonsaitree.pedigree_object import PedigreeObject, merge_pedigrees_on_founder, extend_up, extend_down, connect_pedigrees_through_founders
 from ..bonsaitree.exceptions import *
@@ -1398,6 +1399,8 @@ def test_connect_pedigrees_through_founders():
 
 
 # ======================= Test build_pedigree.py
+
+
 
 @pytest.mark.skip
 def test_infer_local_pedigrees():
