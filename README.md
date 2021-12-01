@@ -55,8 +55,8 @@ The output of bonsai is a dictionary containing a variety of information about t
 * `normed_pedigree`: (dict) A dictionary representing the topology of the pedigree presented in a normalized form so that each node has two filled-in parents, the focal id has nodes filled in up to great grandparents, unknown sexes of spouses are imputed if the sex of the other spouse is known, leaf nodes are deleted if they are unrelated to the focal individual, and sexes of parents are ordered with the mother listed first (if sex is known). `normed_pedigree` has the form `normed_pedigree = {child_id : [sex, parent1, parent2]}`.
 * `ped_obj`: (instance of the PedigreeObject class) `ped_obj` has attributes that include the inferred pedigree topology, inferred pairwise relationships, the pedigree log likelihood, etc. It contains methods for modifying a pedigree, adding or removing individuals, getting ancestors or descendants of a node, finding common ancestors of a set of nodes, etc. Use `dir(ped_obj)` for a full list of attributes and `ped_obj.attribute?` to see information about `attribute`. Some of the most common attributes are below:
 
-    - `up_dict`: (dict) Stores the topology of the inferred pedigree. Has the form `{child_id : [child_sex, child_age, parent1_id, parent2_id]}`.
-    - `down_dict`: (dict) Stores the topology of the inferred pedigree. Has the form `{parent_id : [parent_sex, parent_age, child1_id, child2_id, ...]}`.
+    - `up_pedigree_dict`: (dict) Stores the topology of the inferred pedigree. Has the form `{child_id : [child_sex, child_age, parent1_id, parent2_id]}`.
+    - `down_pedigree_dict`: (dict) Stores the topology of the inferred pedigree. Has the form `{parent_id : [parent_sex, parent_age, child1_id, child2_id, ...]}`.
     - `all_ids`: (list) List of all ids in the pedigree.
     - `ibd_stats`: (dict) Dict with keys of the form `frozenset({id1, id2})` and values giving summary statistics of the ibd sharing between the pair.
     - `rel_dict`: (dict) Dict of the form `dict[id] = {'anc' : <Set of ancestor ids>, 'desc' : <Set of descendant ids>, 'rel' : <Set of relatives who are neither direct descendants nor ancestors>}`.
