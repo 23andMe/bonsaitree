@@ -70,7 +70,16 @@ class PedigreeObject(object):
 
         self.pedigree_log_likelihood = 0
 
-        profile_information = {i : {'age' : self.age_dict[i], 'sex' : self.sex_dict[i]} for i in self.age_dict}
+        if self.ibd_stats:
+            profile_information  = {i : {'age' : u[1], 'sex' : u[0]} for i,u in self.up_pedigree_dict.items() if self.is_genotyped(i)}
+            for i,age in self.age_dict.items():
+                if not self.is_genotyped(i):
+                    continue
+                sex = self.sex_dict.get(i,None)
+                profile_information.update({i : {'age' : age, 'sex' : sex}})
+        else:
+            profile_information = {}
+        #profile_information = {i : {'age' : self.age_dict[i], 'sex' : self.sex_dict[i]} for i in self.age_dict}
         self.distributions = load_distributions()
         self.point_prediction_group = construct_point_prediction_group(profile_information, self.ibd_stats)
 
@@ -179,7 +188,7 @@ class PedigreeObject(object):
             self.genotyped_ids |= pair_key
 
     def is_genotyped(self, resid):
-        if resid in self.genotyped_ids:
+        if resid > 0:
             return True
         else:
             return False
@@ -1546,7 +1555,20 @@ def merge_pedigrees_on_founder(
 
     new_up_dict = po1.up_pedigree_dict
     new_up_dict.update(po2.up_pedigree_dict)
-    return PedigreeObject(new_up_dict, ibd_stats = ibd_stat_dict, pairwise_log_likelihoods = pw_log_likes)
+
+    new_age_dict = copy.deepcopy(po1.age_dict)
+    new_age_dict.update(po2.age_dict)
+
+    new_sex_dict = copy.deepcopy(po1.sex_dict)
+    new_sex_dict.update(po2.sex_dict)
+
+    return PedigreeObject(
+        up_pedigree_dict = new_up_dict, 
+        ibd_stats = ibd_stat_dict, 
+        pairwise_log_likelihoods = pw_log_likes, 
+        sex_dict = new_sex_dict, 
+        age_dict = new_age_dict,
+    )
 
 
 def connect_pedigrees_through_founders(
