@@ -100,7 +100,7 @@ def read_ibis_ibd(
         )
         ibd_seg_list += chrom_ibd_seg_list
 
-    return chrom_ibd_seg_list
+    return ibd_seg_list
 
 
 def ibis_to_ibd_seg_list(
