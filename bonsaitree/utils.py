@@ -138,8 +138,8 @@ def ibis_to_ibd_seg_list(
             err_density,
         ) = seg
 
-        id1 = int(id1.split(':')[0])
-        id2 = int(id2.split(':')[0])
+        id1 = int(id1.split(':')[1])
+        id2 = int(id2.split(':')[1])
         phys_start = float(phys_start)
         phys_end = float(phys_end)
         gen_start = float(gen_start)

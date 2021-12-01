@@ -114,7 +114,12 @@ def build_pedigree(
         sex = sex_dict[focal_id]
         age = age_dict[focal_id]
         up_dict = {focal_id : [sex,age]}
-        ped_obj = PedigreeObject(up_dict)
+        ped_obj = PedigreeObject(
+            up_pedigree_dict=up_dict,
+            ibd_stats=ibd_stat_dict,
+            age_dict=age_dict,
+            sex_dict=sex_dict,
+        )
         ped_obj_list = [ped_obj]
         est_index_to_ped_obj_list = {0 : [ped_obj]}
         est_index_to_gtid_set = {0 : {focal_id}}
@@ -989,14 +994,6 @@ def replace_validated_nodes(
 def validate_input(focal_id, ibd_seg_list, bio_info):
     validate_ibd_seg_list(ibd_seg_list)
     validate_bio_info(bio_info)
-
-
-def validate_focal_id(focal_id):
-    if isinstance(focal_id, int):
-        if focal_id < 0:
-            raise Exception("Focal ID must be a positive integer.")
-    else:
-        raise Exception("Focal ID must be a positive integer.")
 
 
 def validate_ibd_seg_list(ibd_seg_list):
