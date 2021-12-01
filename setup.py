@@ -28,7 +28,7 @@ setup(
     include_package_data=True,
     url="https://github.com/23andme/" + NAME,
     zip_safe=True,
-    install_requires=["Cython", "funcy", "numpy", "scipy", "setuptools-scm", "wheel"],
+    install_requires=["Cython", "funcy", "numpy", "scipy", "six", "setuptools-scm", "wheel"],
     setup_requires=["Cython", "setuptools-scm", "wheel"],
     ext_modules=[
         Extension("bonsaitree.copytools", sources=["bonsaitree/copytools.pyx"])

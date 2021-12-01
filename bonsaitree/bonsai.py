@@ -987,7 +987,6 @@ def replace_validated_nodes(
 
 
 def validate_input(focal_id, ibd_seg_list, bio_info):
-    validate_focal_id(focal_id)
     validate_ibd_seg_list(ibd_seg_list)
     validate_bio_info(bio_info)
 
