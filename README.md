@@ -6,13 +6,15 @@ Algorithm for automatically building pedigrees using IBD, Age, and Sex informati
 
 Installation and testing
 ------------------------
-To install:
+To install: in the bonsaitree directory containing the file Makefile, type
 ```
-make
-python setup.py install
+make install
 ```
+at a command prompt. See the [Troubleshooting](#Troubleshooting) section below for common errors.
 
-To test:
+
+
+To test: in the directory containing the file Makefile, type
 ```
 make test
 ```
@@ -20,7 +22,7 @@ make test
 
 Interface
 ---------
-To build a tree for a group of related individuals:
+To build a tree for a group of related individuals: open python (e.g., type "python" at a command prompt or open a Jupyter notebook). Then:
 ```
 from bonsaitree import bonsai
 
@@ -219,3 +221,9 @@ Means and standard deviations for pairwise age differences can be found in `age_
 }
 ```
 where `rel_tuple` is the tuple denoting the relationship between a pair of indiviudals `i` and `j`, which is of the form described previously. The quantities `age_diff_mean` and `age_diff_std_dev` are the mean and standard deviation of the difference `age(j) - age(i)`.
+
+
+<a name="Troubleshooting"></a>Troubleshooting
+---------
+1. If you experience an error running "make install", try upgrading pip before trying other things. To do this, type "pip install --upgrade pip" at a command prompt.
+2. If upgrading pip does not work, you can try installing Bonsai in a virtual environment. To create and activate a virtual environment, type "python3 -m venv venv && source venv/bin/activate" at a command prompt. Then try running "make install" again.
