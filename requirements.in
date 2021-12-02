@@ -1,0 +1,6 @@
+wheel
+six
+numpy
+scipy
+pytest
+funcy
