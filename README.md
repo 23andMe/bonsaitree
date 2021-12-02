@@ -128,7 +128,9 @@ WARNING:
 
 IBD inference
 ---------
-IBD can be inferred using any method. However, Bonsai was developed using an in-house method for IBD inference that estimates IBD from unphased data ([Henn et al., 2012](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0034267)). A publicly available method that behaves very similarly is Ibis ([Seidman et al., 2020](https://github.com/williamslab/ibis)). The pre-trained distributions that come packaged with Bonsai have been tested with Ibis.  Code for converting Ibis output to Bonsai input is included with Bonsai and an example of usage is shown below.
+IBD can be inferred using any method. However, Bonsai was developed using an in-house method for IBD inference that estimates IBD from unphased data ([Henn et al., 2012](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0034267)). A publicly available method that behaves very similarly is Ibis ([Seidman et al., 2020](https://github.com/williamslab/ibis)). The pre-trained distributions that come packaged with Bonsai have been tested with Ibis. Code for converting Ibis output to Bonsai input is included with Bonsai and an example of usage is shown below.
+
+WARNING: The bonsai distributions were trained using [this genetic map](https://github.com/auton1/Campbell_et_al). Bonsai will produce odd results if your map differs too much from this one, particularly in the full genome length. Bonsai expects the full autosomal genome length to be around 3500 cM and the full genome (including X) to be around 3700cM.
 
 
 Example usage
