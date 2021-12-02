@@ -1,8 +1,7 @@
-all:
-	pip install cython
-	pip install pytest
-	pip install funcy
+install:
+	pip install -r requirements.txt
 	python setup.py build_ext --inplace
+	pip install .
 
 test:
 	pytest tests/test_bonsai.py

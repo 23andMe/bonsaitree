@@ -10,27 +10,20 @@ setup(
     name=NAME,
     use_scm_version=True,
     author="23andMe Engineering",
-    author_email="eng@23andme.com",
+    author_email="ejewett@23andme.com",
     description=DESCRIPTION,
     license=LICENSE,
     long_description=README,
     long_description_content_type="text/markdown",
-    package_data={NAME: ["_/*/*"]},
-    packages=find_packages(
-        exclude=[
-            # Omit root tests from package
-            "*.tests",
-            "*.tests.*",
-            "tests.*",
-            "tests",
-        ]
-    ),
+    packages=[NAME],
+    package_dir={NAME : NAME},
+    package_data={NAME: ["models/*.json"]},
     include_package_data=True,
     url="https://github.com/23andme/" + NAME,
     zip_safe=True,
     install_requires=["Cython", "funcy", "numpy", "scipy", "six", "setuptools-scm", "wheel"],
     setup_requires=["Cython", "setuptools-scm", "wheel"],
-    ext_modules=[
-        Extension("bonsaitree.copytools", sources=["bonsaitree/copytools.pyx"])
-    ],
+    #ext_modules=[
+    #    Extension("bonsaitree.copytools", sources=["bonsaitree/copytools.pyx"])
+    #],
 )
