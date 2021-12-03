@@ -665,7 +665,7 @@ def combine_pedigrees(
         if not new_anc_deg_log_like_list:
             continue
         else:
-            ca1,ca2,deg,log_like = anc_deg_log_like_list[0]
+            ca1,ca2,deg,log_like = new_anc_deg_log_like_list[0]
 
         # Get degrees and number of common ancestors
         num_common_ancs = 2

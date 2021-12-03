@@ -1,9 +1,11 @@
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple, Optional
 import os
 import json
 
 from scipy import interpolate
 from funcy import memoize
+
+from .exceptions import BonsaiException
 
 MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')
 GENETIC_MAP_FILE = os.path.join(MODELS_DIR, 'ibd64_metadata_dict.json')
@@ -30,7 +32,7 @@ def get_map_interpolator() -> Dict[str, Any]:
 def get_reverse_map_interpolator() -> Dict[str, Any]:
     """
     Make a dictionary of interpolators. map_interpolator[chrom] = interpolator,
-    where interpolator(phys_posit) gives the genetic position of phys_posit.
+    where interpolator(genet_posit) gives the physical position of genet_posit.
     """
     metadata_dict = json.loads(open(GENETIC_MAP_FILE).read())
     map_interpolator = dict()
@@ -40,6 +42,44 @@ def get_reverse_map_interpolator() -> Dict[str, Any]:
         interpolator = interpolate.interp1d(genet_posits,phys_posits)
         map_interpolator[chrom] = interpolator
     return map_interpolator
+
+
+def seg_ends_phys_to_gen(
+    start_phys : float, 
+    end_phys : float, 
+    chrom : str, 
+    map_interpolator : Optional[Any] = None,
+) -> Tuple[float, float]:
+    """
+    Map the physical start and end positions of a segment to their genetic
+    positions. We need both the physical start and end for error checking
+    on the segment.
+    """
+    if map_interpolator is None:
+        map_interpolator = get_map_interpolator()
+
+    try:
+        start_genet = map_interpolator[chrom](start_phys)
+    except:
+        # If start is off the beginning, but still >= 0, 
+        # set genetic position to first genetic position
+        if start_phys >= 0 and start_phys < map_interpolator[chrom].x[0]:
+            start_genet = map_interpolator[chrom].y[0]
+        else: # Then the start is probably off the end so we should not consider this segment
+            raise BonsaiException("Segment start is before chromosome start position.")
+    try:
+        end_genet = map_interpolator[chrom](end_phys)
+    except:
+        # TODO: we don't know where the chromosome end is
+        # so we can't do a sanity check on that. Blindly assign
+        # end_genet to be the end of the chromosome. Then check
+        # if end_genet is after start_genet. If not, raise an
+        # exception, otherwise hope for the best.
+        end_genet = map_interpolator[chrom].y[-1]
+        if end_genet <= start_genet:
+            raise BonsaiException("Genetic map of segment end is before map of segment start.")
+
+    return start_genet, end_genet
 
 
 def get_related_sets(

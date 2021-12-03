@@ -3,6 +3,8 @@ from typing import Any, DefaultDict, Dict, FrozenSet, List, Set, Tuple
 import os
 from collections import defaultdict
 
+from .ibd_tools import seg_ends_phys_to_gen
+
 
 def transform_segment_lists_to_ibd_summaries(
     segments: List[List[Any]],
@@ -13,7 +15,7 @@ def transform_segment_lists_to_ibd_summaries(
     Args:
         segments: List of IBD segments to generate summary statistics for.
             Has the following format:
-            [[id1, id2, chromosome, start, end, is_full_ibd, seg_cm]...]
+            [[id1, id2, chromosome, phys_start, phys_end, is_full_ibd, seg_cm]...]
     """
 
     ibd_stats: DefaultDict[FrozenSet[int], Dict[str, Any]] = defaultdict(
@@ -27,11 +29,22 @@ def transform_segment_lists_to_ibd_summaries(
             raise ValueError("Duplicate IBD Segment data")
         observed_pairs.add((id1, id2))
 
+        # get segment lengths from map interpolator
+        # rather than seg_cm in case user's map is
+        # different from the Bonsai map
+        start_genet, end_genet = seg_ends_phys_to_gen(
+            start_phys = start, 
+            end_phys = end,
+            chrom = chromosome,
+        )
+
+        genet_seg_cm = end_genet - start_genet
+
         key = frozenset([id1, id2])
-        ibd_stats[key]["total_half"] += seg_cm if not is_full_ibd else 0
-        ibd_stats[key]["total_full"] += seg_cm if is_full_ibd else 0
+        ibd_stats[key]["total_half"] += genet_seg_cm if not is_full_ibd else 0
+        ibd_stats[key]["total_full"] += genet_seg_cm if is_full_ibd else 0
         ibd_stats[key]["num_half"] += int(not is_full_ibd)
-        ibd_stats[key]["max_seg_cm"] = max(ibd_stats[key]["max_seg_cm"], seg_cm)
+        ibd_stats[key]["max_seg_cm"] = max(ibd_stats[key]["max_seg_cm"], genet_seg_cm)
 
     return ibd_stats
 
