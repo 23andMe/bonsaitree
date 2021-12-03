@@ -37,20 +37,21 @@ log = logging.getLogger(__name__)
 
 def test_transform_segment_lists_to_ibd_summaries():
     ibd_segment_list = [
-        [1, 2, "8", 80660500, 146364022, False, 73.667546],
-        [1, 2, "9", 2936634, 141213431, False, 151.828402],
-        [1, 2, "1", 2927363, 5133431, True, 7.544491000000001],
-        [1, 2, "1", 18398381, 68631622, True, 59.876436],
+        [1, 2, "8", 80660500, 146364022, False, 71.77],
+        [1, 2, "9", 2936634, 141213431, False, 157.76],
+        [1, 2, "1", 2927363, 5133431, True, 6.75],
+        [1, 2, "1", 18398381, 68631622, True, 61.21],
     ]
 
     summaries = utils.transform_segment_lists_to_ibd_summaries(ibd_segment_list)
-    assert summaries == {
-        frozenset([1, 2]): {
-            "total_half": 73.667546 + 151.828402,
-            "total_full": 7.544491000000001 + 59.876436,
-            "num_half": 2,
-            "max_seg_cm": 151.828402,
-        }
+    
+    key = frozenset({1,2})
+    rounded_summaries = {k : np.floor(v) for k,v in summaries[key].items()}
+    assert rounded_summaries == {
+        "total_half": np.floor(71.77 + 157.76),
+        "total_full": np.floor(6.75 + 61.21),
+        "num_half": 2,
+        "max_seg_cm": np.floor(157.76),
     }
 
 
@@ -1402,7 +1403,7 @@ def test_connect_pedigrees_through_founders():
 
 
 
-@pytest.mark.skip
+#@pytest.mark.skip
 def test_infer_local_pedigrees():
     data_path = os.path.join(FIXTURES_DIR, '4gens_2offspring_0.1probhalf.json')
     ped_data = json.loads(open(data_path).read())
