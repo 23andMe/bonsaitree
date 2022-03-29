@@ -23,12 +23,12 @@ def transform_segment_lists_to_ibd_summaries(
     )
 
     observed_segments: Set[Tuple[int, int, int, int, int, int, int]] = set()
-    for s in segments:
-        (id1, id2, chromosome, start, end, is_full_ibd, seg_cm) = s
-        rev_s = (id2, id1, chromosome, start, end, is_full_ibd, seg_cm) # seg with id order reversed
-        if s in observed_segments or rev_s in observed_segments:
+    for id1, id2, chromosome, start, end, is_full_ibd, seg_cm in segments:
+        seg = (id1, id2, chromosome, start, end, is_full_ibd, seg_cm)
+        rev_seg = (id2, id1, chromosome, start, end, is_full_ibd, seg_cm)
+        if seg in observed_segments or rev_seg in observed_segments:
             raise ValueError("Duplicate IBD Segment data")
-        observed_segments.add(s)
+        observed_segments.add(seg)
 
         # get segment lengths from map interpolator
         # rather than seg_cm in case user's map is
