@@ -15,30 +15,37 @@ def transform_segment_lists_to_ibd_summaries(
     Args:
         segments: List of IBD segments to generate summary statistics for.
             Has the following format:
-            [[id1, id2, chromosome, start, end, is_full_ibd, seg_cm]...]
+            [[id1, id2, chromosome, phys_start, phys_end, is_full_ibd, seg_cm]...]
     """
 
     ibd_stats: DefaultDict[FrozenSet[int], Dict[str, Any]] = defaultdict(
         lambda: {"total_half": 0, "total_full": 0, "num_half": 0, "max_seg_cm": 0}
     )
 
-    observed_segs: Set[Tuple[int, int, str, int, int, bool, float]] = set()
-    for id1, id2, chrom, start, end, is_full_ibd, seg_cm in segments:
-
-        seg = (id1, id2, chrom, start, end, is_full_ibd, seg_cm)
-        rev_seg = (id2, id1, chrom, start, end, is_full_ibd, seg_cm)
-
-        if seg in observed_segs or rev_seg in observed_segs:
+    observed_segments: Set[Tuple[int, int, int, int, int, int, int]] = set()
+    for s in segments:
+        (id1, id2, chromosome, start, end, is_full_ibd, seg_cm) = s
+        rev_s = (id2, id1, chromosome, start, end, is_full_ibd, seg_cm) # seg with id order reversed
+        if s in observed_segments or rev_s in observed_segments:
             raise ValueError("Duplicate IBD Segment data")
-        
-        observed_segs.add(seg)
-        observed_segs.add(rev_seg)
+        observed_segments.add(s)
+
+        # get segment lengths from map interpolator
+        # rather than seg_cm in case user's map is
+        # different from the Bonsai map
+        start_genet, end_genet = seg_ends_phys_to_gen(
+            start_phys = start, 
+            end_phys = end,
+            chrom = chromosome,
+        )
+
+        genet_seg_cm = end_genet - start_genet
 
         key = frozenset([id1, id2])
-        ibd_stats[key]["total_half"] += seg_cm if not is_full_ibd else 0
-        ibd_stats[key]["total_full"] += seg_cm if is_full_ibd else 0
+        ibd_stats[key]["total_half"] += genet_seg_cm if not is_full_ibd else 0
+        ibd_stats[key]["total_full"] += genet_seg_cm if is_full_ibd else 0
         ibd_stats[key]["num_half"] += int(not is_full_ibd)
-        ibd_stats[key]["max_seg_cm"] = max(ibd_stats[key]["max_seg_cm"], seg_cm)
+        ibd_stats[key]["max_seg_cm"] = max(ibd_stats[key]["max_seg_cm"], genet_seg_cm)
 
     return ibd_stats
 
