@@ -112,6 +112,12 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
     if ca2 > 0:
         gt_desc_set2.add(ca2)
 
+    # get total IBD shared among descendant sets
+    chrom_ibd_segs_dict = get_ibd_segs_between_sets(gt_desc_set1, gt_desc_set2, ibd_seg_list)
+    merged_chrom_ibd_segs_dict = merge_ibd_segs(chrom_ibd_segs_dict)
+    merged_ibd_seg_lengths = get_segment_length_list(merged_chrom_ibd_segs_dict)
+    desc_set_L_merged_tot = sum(merged_ibd_seg_lengths)
+
     indt_gt_desc_set1 = po1.get_independent_inds(gt_desc_set1)
     indt_gt_desc_set2 = po2.get_independent_inds(gt_desc_set2)
 
@@ -125,17 +131,18 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
     min_id2 = get_min_id(node_dict2)
     root_id = min(min_id1,min_id2) - 1
 
+    # get total IBD shared among independent sets
     chrom_ibd_segs_dict = get_ibd_segs_between_sets(indt_gt_desc_set1, indt_gt_desc_set2, ibd_seg_list)
     merged_chrom_ibd_segs_dict = merge_ibd_segs(chrom_ibd_segs_dict)
     merged_ibd_seg_lengths = get_segment_length_list(merged_chrom_ibd_segs_dict)
-    L_merged_tot = sum(merged_ibd_seg_lengths)
+    indt_set_L_merged_tot = sum(merged_ibd_seg_lengths)
 
     deg = infer_degree_generalized_druid(
         leaf_set1 = indt_gt_desc_set1,
         leaf_set2 = indt_gt_desc_set2,
         node_dict1 = node_dict1,
         node_dict2 = node_dict2,
-        L_merged_tot = L_merged_tot,
+        L_merged_tot = indt_set_L_merged_tot,
     )
 
     if deg == 0 and ca1 > 0 and ca2 > 0:
@@ -170,12 +177,15 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
 
     expected_count = mean / El
 
-    if L_merged_tot > 0:
-        log_like = get_log_like_total_length_normal(L_merged_tot, mean, var) + logsumexp([0,-expected_count],b=[1,-1])
+    # compute log_like w.r.t. full desc set to avoid case where
+    # common ancestor shares only background IBD and descendants
+    # really connect through a different ancestor.
+    if desc_set_L_merged_tot > 0:
+        log_like = get_log_like_total_length_normal(desc_set_L_merged_tot, mean, var) + logsumexp([0,-expected_count],b=[1,-1])
     else:
         log_like = -expected_count
 
-    return deg, L_merged_tot, log_like
+    return deg, indt_set_L_merged_tot, log_like
 
 
 def get_open_ancestor_set(
