@@ -22,12 +22,15 @@ def transform_segment_lists_to_ibd_summaries(
         lambda: {"total_half": 0, "total_full": 0, "num_half": 0, "max_seg_cm": 0}
     )
 
-    observed_pairs: Set[Tuple[int, int]] = set()
+    observed_segs: Set[Tuple[int, int, int, int, int, int, int]] = set()
     for s in segments:
         id1, id2, chromosome, start, end, is_full_ibd, seg_cm = s
-        if (id2, id1) in observed_pairs:
+        seg = (id1, id2, chromosome, start, end, is_full_ibd, seg_cm)
+        rev_seg = (id2, id1, chromosome, start, end, is_full_ibd, seg_cm)
+        if seg in observed_segs or rev_seg in observed_segs:
             raise ValueError("Duplicate IBD Segment data")
-        observed_pairs.add((id1, id2))
+        observed_segs.add(seg)
+        observed_segs.add(rev_seg)
 
         # get segment lengths from map interpolator
         # rather than seg_cm in case user's map is
