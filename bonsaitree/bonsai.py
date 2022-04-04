@@ -279,6 +279,9 @@ def build_pedigree(
     return_data['original_index_to_gtid_set'] = original_index_to_gtid_set
     return_data['original_index_to_ped_obj_list'] = original_index_to_ped_obj_list
 
+    # return the focal ID so pedigrees can be compared with different focal IDs
+    return_data['focal_id'] = focal_id
+
     return return_data
 
 

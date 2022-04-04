@@ -119,6 +119,44 @@ def read_ibis_ibd(
     return ibd_seg_list
 
 
+def convert_phys_to_gen_seg_positions(
+    ibd_seg_list : List[List[Any]],
+) -> List[List[Any]]:
+    """
+    Translate physical positions from IBIS into genetic
+    positions consistent with the genetic map Bonsai was
+    trained on.
+
+    Args:
+        ibd_seg_list : list of IBD segments created by ibis_to_ibd_seg_list()
+                       of the form [[id1, id2, chrom, phys_start, phys_end, is_full, gen_seg_len],...]
+                       
+
+    Returns:
+        ibd_seg_list : of the form
+                       [[id1, id2, chrom, gen_start, gen_end, is_full, gen_seg_len],...]
+    """
+
+    new_ibd_seg_list = []
+    for id1, id2, chrom, phys_start, phys_end, is_full, gen_seg_len in ibd_seg_list:
+
+        # map physical positions to genetic positions using
+        # the map 23andMe was trained on
+        gen_start, gen_end = seg_ends_phys_to_gen(
+            start_phys = phys_start, 
+            end_phys = phys_end,
+            chrom = chrom,
+        )
+
+        gen_seg_len = gen_end - gen_start
+
+        new_seg = (id1, id2, chrom, float(gen_start), float(gen_end), is_full, float(gen_seg_len))
+
+        new_ibd_seg_list.append(new_seg)
+
+    return new_ibd_seg_list
+
+
 def ibis_to_ibd_seg_list(
     raw_ibis_segs: List[str],
 ) -> List[List[Any]]:
