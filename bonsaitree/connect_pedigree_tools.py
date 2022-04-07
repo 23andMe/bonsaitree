@@ -15,7 +15,7 @@ from .exceptions import BuildFailException
 from .analytical_likelihood_tools import get_log_prob_ibd, get_ibd_pattern_log_prob, get_background_test_pval_gamma, get_var_total_length_approx, get_log_like_total_length_normal, get_background_test_pval_normal
 from .node_dict_tools import get_min_id, get_node_dict_founder_set, get_node_dict, get_node_dict_for_root, adjust_node_dict_to_common_anc, extract_down_node_dict, get_leaf_set, get_desc_deg_dict
 from .ibd_tools import check_overlap, get_segment_length_list, get_ibd_segs_between_sets, merge_ibd_segs, get_related_sets
-from .point_predictor import log_likelihoods_by_age
+from .point_predictor import log_likelihoods_by_age, get_distant_rel_log_like_by_ids, construct_point_prediction_group
 from .distributions import load_distributions, AUTO_GENOME_LENGTH, MIN_PARENT_CHILD_AGE_DIFF
 
 INF = float('inf')
@@ -83,6 +83,7 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
     po1 : Any,
     po2 : Any,
     ibd_seg_list : List[List[Any]],
+    disallow_distant_half_rels : bool = False,
 ) -> Tuple[int,float,float]:
     """
     Get the most likely degree and log likelihood for connecting the pedigrees
@@ -145,9 +146,39 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
         L_merged_tot = indt_set_L_merged_tot,
     )
 
+    """
     if deg == 0 and ca1 > 0 and ca2 > 0:
         raise BuildFailException("DRUID inferring {} and {} are identical.".format(ca1,ca2))
+    """
 
+    # compute the log likelihood based on the composite, rather than using
+    # the DRUID likelihood. Turns out the DRUID likelihood is less robust
+    # to the case in which the MRCA shares background IBD, with the other
+    # pedigree, but is not themselves the common ancestor through which the
+    # pedigrees are connected. So we'll use the generalized DRUID degree,
+    # but we'll compute the likelihood using the composite likelihood.
+
+    # search over degrees that are close to the point estimated degree
+    min_deg = max(0, deg-1)
+    max_deg = deg+1
+    anc_deg_log_like_list = []
+    for test_deg in range(min_deg, max_deg+1):
+        # can't merge on two genotyped people
+        if deg == 0 and ca1 > 0 and ca2 > 0:
+            continue
+
+        deg1, deg2, num_common_ancs, log_like = get_deg1_deg2(
+            deg = test_deg,
+            anc_id1 = ca1,
+            anc_id2 = ca2,
+            po1 = po1,
+            po2 = po2,
+            disallow_distant_half_rels = disallow_distant_half_rels,
+        )
+
+        anc_deg_log_like_list.append([ca1, ca2, deg1, deg2, num_common_ancs, log_like])
+
+    """
     deg1 = int(np.floor(deg/2))
     deg2 = int(np.ceil(deg/2))
     node_dict = {root_id : {ca1 : deg1, ca2 : deg2}}
@@ -184,6 +215,7 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
         log_like = get_log_like_total_length_normal(desc_set_L_merged_tot, mean, var) + logsumexp([0,-expected_count],b=[1,-1])
     else:
         log_like = -expected_count
+    """
 
     return deg, indt_set_L_merged_tot, log_like
 
@@ -352,6 +384,7 @@ def get_connecting_founders_degs_and_log_likes(
     threshold : float = 0.5,
     use_overlap : bool = True,
     require_descendant_match : bool = True,
+    disallow_distant_half_rels : bool = False,
 ) -> List[List[Any]]:
     """
     Cycle over all open ancestors. Make node dicts connecting po1 and po2 through 
@@ -417,15 +450,16 @@ def get_connecting_founders_degs_and_log_likes(
     anc_deg_log_like_list : List[List[Any]] = list()
     for ca1 in possible_anc_set1:
         for ca2 in possible_anc_set2:
-            deg,L_tot,log_like = get_connecting_anc_pair_deg_Ltot_and_log_like(
+            l_tot, this_anc_deg_log_like_list = get_connecting_anc_pair_deg_Ltot_and_log_like(
                 ca1 = ca1,
                 ca2 = ca2,
                 po1 = po1,
                 po2 = po2,
                 ibd_seg_list = ibd_seg_list,
+                disallow_distant_half_rels = disallow_distant_half_rels,
             )
-            if L_tot > 0:
-                anc_deg_log_like_list += [[ca1,ca2,deg,log_like]]
+            if l_tot > 0:
+                anc_deg_log_like_list += this_anc_deg_log_like_list
 
     return sorted(anc_deg_log_like_list, key = lambda x: -x[-1])
 
@@ -436,7 +470,7 @@ def get_deg1_deg2(
     anc_id2 : int,
     po1 : Any,
     po2 : Any,
-    num_common_ancs : int = 2,
+    disallow_distant_half_rels : bool,
 ) -> Tuple[int,int,float]:
     """
     Use ages to determine deg1, the degree from the common ancestor of node_dict1 to the root ancestor,
@@ -449,6 +483,7 @@ def get_deg1_deg2(
         po2: pedigree object 2
         num_common_ancs: number of common ancs of anc_id1 and anc_id2
     """
+
     gt_desc_deg_dict1 = {node_id : po1.rels[anc_id1][node_id][1] for node_id in po1.rel_dict[anc_id1]['desc'] if node_id > 0}
     gt_desc_deg_dict2 = {node_id : po2.rels[anc_id2][node_id][1] for node_id in po2.rel_dict[anc_id2]['desc'] if node_id > 0}
     if anc_id1 > 0:
@@ -459,42 +494,73 @@ def get_deg1_deg2(
     gt_desc_deg_dict1 = {uid : deg for uid,deg in gt_desc_deg_dict1.items() if uid in po1.up_pedigree_dict and po1.up_pedigree_dict[uid][1] is not None}
     gt_desc_deg_dict2 = {uid : deg for uid,deg in gt_desc_deg_dict2.items() if uid in po2.up_pedigree_dict and po2.up_pedigree_dict[uid][1] is not None}
 
-    # for a fixed degree and specified number of common ancestors, get the total up+down
-    # number of meioses that is compatible with the degree.
-    if num_common_ancs == 1:
-        up_down_total = deg
-    elif num_common_ancs == 2:
-        up_down_total = deg + 1
-
-    # set defaults to return if nothing is better
-    est_deg1 = int(np.ceil(up_down_total/2))
-    est_deg2 = up_down_total - est_deg1
-
     distributions = load_distributions()
 
-    max_log_like = -INF
-    for deg1 in range(up_down_total+1):
-        deg2 = up_down_total - deg1
-        log_like = 0.0
-        for id1,desc_deg1 in gt_desc_deg_dict1.items():
-            for id2,desc_deg2 in gt_desc_deg_dict2.items():
-                new_deg_tuple = (deg1+desc_deg1, deg2+desc_deg2, num_common_ancs)
-                age1 = po1.up_pedigree_dict[id1][1]
-                age2 = po2.up_pedigree_dict[id2][1]
-                pair_log_like_list = log_likelihoods_by_age(
-                    [age1], 
-                    [age2], 
-                    new_deg_tuple, 
-                    distributions.age_diff_moments
-                )
-                pair_log_like = pair_log_like_list[0]
-                log_like += pair_log_like
-        if log_like > max_log_like:
-            max_log_like = log_like
-            est_deg1 = deg1
-            est_deg2 = deg2
+    profile_info1 = {k : {'age' : v[1], 'sex' : v[0]} for k,v in po1.up_pedigree_dict.items() if k > 0}
+    profile_info2 = {k : {'age' : v[1], 'sex' : v[0]} for k,v in po2.up_pedigree_dict.items() if k > 0}
+    profile_information = {**profile_info1, **profile_info2} # compatible with Python 3.5+
 
-    return (est_deg1,est_deg2,max_log_like)
+    if po1.ibd_stats != po2.ibd_stats:
+        raise Exception("get_deg1_deg2 assumes that po1 and po2 both contain IBD stats for the same set of ids.")
+
+    point_pred_group = construct_point_prediction_group(
+        profile_information = profile_information,
+        summaries = po1.ibd_stats,
+    )
+
+    if disallow_distant_half_rels and deg > 2:
+        num_common_ancs_list = [2]
+    else:
+        num_common_ancs_list = [1, 2]
+
+    max_log_like = -INF
+    for num_common_ancs in num_common_ancs_list:
+
+        up_down_total = deg if num_common_ancs == 1 else deg+1
+
+        # set defaults to return if nothing is better
+        est_deg1 = int(np.ceil(up_down_total/2))
+        est_deg2 = up_down_total - est_deg1
+
+        for deg1 in range(up_down_total+1):
+            deg2 = up_down_total - deg1
+            log_like = 0.0
+            for id1,desc_deg1 in gt_desc_deg_dict1.items():
+                for id2,desc_deg2 in gt_desc_deg_dict2.items():
+                    new_deg_tuple = (deg1+desc_deg1, deg2+desc_deg2, num_common_ancs)
+                    age1 = po1.up_pedigree_dict[id1][1]
+                    age2 = po2.up_pedigree_dict[id2][1]
+
+                    # get age-based log-like
+                    age_pair_log_like_list = log_likelihoods_by_age(
+                        [age1], 
+                        [age2], 
+                        new_deg_tuple, 
+                        distributions.age_diff_moments
+                    )
+                    age_pair_log_like = age_pair_log_like_list[0]
+                    log_like += age_pair_log_like
+
+                    # get genetic composite log like
+                    gen_log_like = get_distant_rel_log_like_by_ids(
+                        unique_id_1 = id1,
+                        unique_id_2 = id2,
+                        up_meioses = new_deg_tuple[0],
+                        down_meioses = new_deg_tuple[1],
+                        num_ancestors = new_deg_tuple[2],
+                        point_prediction_group = point_pred_group,
+                        distribution_models = distributions,
+                    )
+
+                    log_like += gen_log_like
+
+            if log_like > max_log_like:
+                max_log_like = log_like
+                est_deg1 = deg1
+                est_deg2 = deg2
+                est_num_common_ancs = num_common_ancs
+
+    return (est_deg1, est_deg2, est_num_common_ancs, max_log_like)
 
 
 def find_open_partner_and_update_po(
@@ -639,6 +705,7 @@ def combine_pedigrees(
         ibd_seg_list = ibd_seg_list,
         require_descendant_match = True,
         use_overlap = use_overlap,
+        disallow_distant_half_rels = disallow_distant_half_rels,
     )
 
     num_arrangements = len(anc_deg_log_like_list)
@@ -646,10 +713,10 @@ def combine_pedigrees(
     ind = 0
     new_ped_obj_list : List[Any] = list()
     while ind < num_arrangements and len(new_ped_obj_list) < num_peds:
-        ca1,ca2,deg,log_like = anc_deg_log_like_list[ind]
+        ca1, ca2, deg1, deg2, num_common_ancs, log_like = anc_deg_log_like_list[ind]
         ind += 1
 
-        ca1 = drop_background_ibd(
+        new_ca1 = drop_background_ibd(
             ca1 = ca1,
             ca2 = ca2,
             po1 = po1,
@@ -658,10 +725,10 @@ def combine_pedigrees(
             alpha = drop_ibd_alpha,
         )
 
-        if not ca1:
+        if not new_ca1:
             continue
 
-        ca2 = drop_background_ibd(
+        new_ca2 = drop_background_ibd(
             ca1 = ca2,
             ca2 = ca1,
             po1 = po2,
@@ -670,39 +737,31 @@ def combine_pedigrees(
             alpha = drop_ibd_alpha,
         )
 
-        if not ca2:
+        if not new_ca2:
             continue
 
-        gt_set1 = {iid for iid in po1.rel_dict[ca1]['desc'] if iid > 0}
-        gt_set2 = {iid for iid in po2.rel_dict[ca2]['desc'] if iid > 0}
+        if new_ca1 != ca1 or new_ca2 != ca2:
+            gt_set1 = {iid for iid in po1.rel_dict[new_ca1]['desc'] if iid > 0}
+            gt_set2 = {iid for iid in po2.rel_dict[new_ca2]['desc'] if iid > 0}
 
-        gt_set1 |= {ca1} if ca1 > 0 else set()
-        gt_set2 |= {ca2} if ca2 > 0 else set()
+            gt_set1 |= {new_ca1} if new_ca1 > 0 else set()
+            gt_set2 |= {new_ca2} if new_ca2 > 0 else set()
 
-        new_anc_deg_log_like_list = get_connecting_founders_degs_and_log_likes(
-            po1 = po1,
-            po2 = po2,
-            gt_set1 = gt_set1,
-            gt_set2 = gt_set2,
-            ibd_seg_list = ibd_seg_list,
-            require_descendant_match = True,
-            use_overlap = use_overlap,
-        )
+            new_anc_deg_log_like_list = get_connecting_founders_degs_and_log_likes(
+                po1 = po1,
+                po2 = po2,
+                gt_set1 = gt_set1,
+                gt_set2 = gt_set2,
+                ibd_seg_list = ibd_seg_list,
+                require_descendant_match = True,
+                use_overlap = use_overlap,
+                disallow_distant_half_rels = disallow_distant_half_rels,
+            )
 
-        if not new_anc_deg_log_like_list:
-            continue
-        else:
-            ca1,ca2,deg,log_like = new_anc_deg_log_like_list[0]
-
-        # Get degrees and number of common ancestors
-        num_common_ancs = 2
-        deg1,deg2,log_like = get_deg1_deg2(deg, ca1, ca2, po1, po2, num_common_ancs)
-        if not disallow_distant_half_rels:
-            deg1_1,deg2_1,log_like_1 = get_deg1_deg2(deg, ca1, ca2, po1, po2, num_common_ancs=1)
-            if log_like_1 > log_like:
-                deg1 = deg1_1
-                deg2 = deg2_1
-                num_common_ancs = 1
+            if not new_anc_deg_log_like_list:
+                continue
+            else:
+                ca1,ca2,deg1, deg2, num_common_ancs, log_like = new_anc_deg_log_like_list[0]
 
         po1_copy = copy.deepcopy(po1)
         po2_copy = copy.deepcopy(po2)
