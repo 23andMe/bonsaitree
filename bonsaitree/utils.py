@@ -22,13 +22,15 @@ def transform_segment_lists_to_ibd_summaries(
         lambda: {"total_half": 0, "total_full": 0, "num_half": 0, "max_seg_cm": 0}
     )
 
-    observed_segments: Set[Tuple[int, int, int, int, int, int, int]] = set()
-    for id1, id2, chromosome, start, end, is_full_ibd, seg_cm in segments:
+    observed_segs: Set[Tuple[int, int, int, int, int, int, int]] = set()
+    for s in segments:
+        id1, id2, chromosome, start, end, is_full_ibd, seg_cm = s
         seg = (id1, id2, chromosome, start, end, is_full_ibd, seg_cm)
         rev_seg = (id2, id1, chromosome, start, end, is_full_ibd, seg_cm)
-        if seg in observed_segments or rev_seg in observed_segments:
+        if seg in observed_segs or rev_seg in observed_segs:
             raise ValueError("Duplicate IBD Segment data")
-        observed_segments.add(seg)
+        observed_segs.add(seg)
+        observed_segs.add(rev_seg)
 
         # get segment lengths from map interpolator
         # rather than seg_cm in case user's map is
@@ -115,6 +117,44 @@ def read_ibis_ibd(
         ibd_seg_list += chrom_ibd_seg_list
 
     return ibd_seg_list
+
+
+def convert_phys_to_gen_seg_positions(
+    ibd_seg_list : List[List[Any]],
+) -> List[List[Any]]:
+    """
+    Translate physical positions from IBIS into genetic
+    positions consistent with the genetic map Bonsai was
+    trained on.
+
+    Args:
+        ibd_seg_list : list of IBD segments created by ibis_to_ibd_seg_list()
+                       of the form [[id1, id2, chrom, phys_start, phys_end, is_full, gen_seg_len],...]
+                       
+
+    Returns:
+        ibd_seg_list : of the form
+                       [[id1, id2, chrom, gen_start, gen_end, is_full, gen_seg_len],...]
+    """
+
+    new_ibd_seg_list = []
+    for id1, id2, chrom, phys_start, phys_end, is_full, gen_seg_len in ibd_seg_list:
+
+        # map physical positions to genetic positions using
+        # the map 23andMe was trained on
+        gen_start, gen_end = seg_ends_phys_to_gen(
+            start_phys = phys_start, 
+            end_phys = phys_end,
+            chrom = chrom,
+        )
+
+        gen_seg_len = gen_end - gen_start
+
+        new_seg = (id1, id2, chrom, float(gen_start), float(gen_end), is_full, float(gen_seg_len))
+
+        new_ibd_seg_list.append(new_seg)
+
+    return new_ibd_seg_list
 
 
 def ibis_to_ibd_seg_list(

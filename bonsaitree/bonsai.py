@@ -31,7 +31,7 @@ MAX_RADIUS = INF
 MAX_ADD_DEGREE = 2
 MIN_REL_APPEND_TYPES = 1
 MAX_REL_APPEND_TYPES = 6
-IBD_THRESHOLD = 0
+IBD_THRESHOLD = 10
 PED_SAVE_LIKE_DELTA_FRACTION = 0.001
 PED_SAVE_LIKE_ABS_FRACTION = 0.01
 NUM_SMALL_PED_OBJS_TO_SAVE = 10
@@ -278,6 +278,9 @@ def build_pedigree(
     # return info that's helpful for debugging
     return_data['original_index_to_gtid_set'] = original_index_to_gtid_set
     return_data['original_index_to_ped_obj_list'] = original_index_to_ped_obj_list
+
+    # return the focal ID so pedigrees can be compared with different focal IDs
+    return_data['focal_id'] = focal_id
 
     return return_data
 
