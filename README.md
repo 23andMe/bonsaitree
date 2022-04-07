@@ -83,6 +83,9 @@ WARNING:
 
 <a name="BonsaiParameters"></a>Additional Bonsai Parameters
 ------------------
+* **ibd_threshold**
+    -   default = 10
+    -   remove all ibd segments shorter than ibd_threshold. Ignored if ibd_threshold=0. If you think background IBD and false positive segments are very infrequent in your data, you set ib_threshold lower to potentially increase the size of each inferred pedigree.
 * **seed_pedigree_list**
     -   default = ()
     -   optional ist of seed pedigrees to use as starting points for building the pedigree.
@@ -107,9 +110,6 @@ WARNING:
 * **max_rel_append_types**
     -   default = 3
     -   when building each small pedigree, try to place each new individual in all ways consistent with at most the top `max_rel_append_types` most likely point-predicted relationships with their closest relative.
-* **ibd_threshold**
-    -   default = 0
-    -   remove all ibd segments shorter than ibd_threshold. Ignored if ibd_threshold=0.
 * **remove_distant_threshold**
     -   default = 8
     -   remove all placed genotyped individuals if their degree (a,b,c) to the focal individual satisfies b > `remove_distant_threshold`.
