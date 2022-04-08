@@ -113,6 +113,12 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
     if ca2 > 0:
         gt_desc_set2.add(ca2)
 
+    # get total IBD shared among descendant sets
+    chrom_ibd_segs_dict = get_ibd_segs_between_sets(gt_desc_set1, gt_desc_set2, ibd_seg_list)
+    merged_chrom_ibd_segs_dict = merge_ibd_segs(chrom_ibd_segs_dict)
+    merged_ibd_seg_lengths = get_segment_length_list(merged_chrom_ibd_segs_dict)
+    desc_set_L_merged_tot = sum(merged_ibd_seg_lengths)
+
     indt_gt_desc_set1 = po1.get_independent_inds(gt_desc_set1)
     indt_gt_desc_set2 = po2.get_independent_inds(gt_desc_set2)
 
@@ -126,17 +132,18 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
     min_id2 = get_min_id(node_dict2)
     root_id = min(min_id1,min_id2) - 1
 
+    # get total IBD shared among independent sets
     chrom_ibd_segs_dict = get_ibd_segs_between_sets(indt_gt_desc_set1, indt_gt_desc_set2, ibd_seg_list)
     merged_chrom_ibd_segs_dict = merge_ibd_segs(chrom_ibd_segs_dict)
     merged_ibd_seg_lengths = get_segment_length_list(merged_chrom_ibd_segs_dict)
-    L_merged_tot = sum(merged_ibd_seg_lengths)
+    indt_set_L_merged_tot = sum(merged_ibd_seg_lengths)
 
     deg = infer_degree_generalized_druid(
         leaf_set1 = indt_gt_desc_set1,
         leaf_set2 = indt_gt_desc_set2,
         node_dict1 = node_dict1,
         node_dict2 = node_dict2,
-        L_merged_tot = L_merged_tot,
+        L_merged_tot = indt_set_L_merged_tot,
     )
 
     """
@@ -201,15 +208,16 @@ def get_connecting_anc_pair_deg_Ltot_and_log_like(
 
     expected_count = mean / El
 
-    if L_merged_tot > 0:
-        log_like = get_log_like_total_length_normal(L_merged_tot, mean, var) + logsumexp([0,-expected_count],b=[1,-1])
+    # compute log_like w.r.t. full desc set to avoid case where
+    # common ancestor shares only background IBD and descendants
+    # really connect through a different ancestor.
+    if desc_set_L_merged_tot > 0:
+        log_like = get_log_like_total_length_normal(desc_set_L_merged_tot, mean, var) + logsumexp([0,-expected_count],b=[1,-1])
     else:
         log_like = -expected_count
     """
 
-    #return deg, L_merged_tot, log_like
-
-    return L_merged_tot, anc_deg_log_like_list
+    return deg, indt_set_L_merged_tot, log_like
 
 
 def get_open_ancestor_set(
@@ -332,12 +340,28 @@ def remove_symmetric_ancestors(
 ) -> Set[int]:
     """
     Find out if any pair of ids in open_set are spouses. Remove one of them if neither is
-    genotyped. Because any pedigree created by joining through one ancestor will be the
-    same as the pedigree created by joining through their spouse.
+    genotyped and if they have identical relative sets. In this case, any pedigree created 
+    by joining through one ancestor will be the same as the pedigree created by joining 
+    through their spouse.
     Args:
         open_set: set of fully open ancestors obtained from get_open_ancestor_set() or
                   get_open_ancestor_set_for_leaves()
         po: pedigree object in which node_id resides
+    """
+    return_set = copy.copy(open_set)
+    for uid,info in po.up_pedigree_dict.items():
+        pid_set = {p for p in info[2:] if p is not None and p < 0} # ungenotyped, non-None ancestors
+        overlap_set = return_set & pid_set
+        if len(overlap_set) == 2:
+            p1,p2 = [*overlap_set]
+            p1_rels = po.rel_dict[p1]['anc'] | po.rel_dict[p1]['rel'] | po.rel_dict[p1]['desc']
+            p2_rels = po.rel_dict[p2]['anc'] | po.rel_dict[p2]['rel'] | po.rel_dict[p2]['desc']
+            # If p1_rels and p2_rels are the same, then p1 and p2 are indistinguishable
+            if p1_rels == p2_rels:
+                del_p = sorted(overlap_set)[0] # for reproducibility, always drop the smallest ID
+                return_set.remove(del_p)
+    return return_set
+
     """
     return_set = copy.copy(open_set) # don't modify arguments
     for uid,info in po.up_pedigree_dict.items():
@@ -348,6 +372,7 @@ def remove_symmetric_ancestors(
             save_id = ungenotyped_overlap_set.pop()
             return_set -= ungenotyped_overlap_set
     return return_set
+    """
 
 
 def get_connecting_founders_degs_and_log_likes(
@@ -667,8 +692,8 @@ def combine_pedigrees(
     gt_set1,gt_set2 = get_related_sets(gt_set1, gt_set2, ibd_seg_list)
 
     # gt_set1 may not have a single common ancestor due to background IBD/inbreeding etc.
-    # if necessary, find the common ancestor(s) whose descendants share the most with pedigree 2
-    # and retain their descendants as gt_set1
+    # if necessary, find the common ancestor (or mate-pair of ancestors) whose descendants 
+    #share the most with pedigree 2 and retain their descendants as gt_set1
     gt_set1 = get_best_desc_id_set(gt_set1, gt_set2, po1, ibd_seg_list)
     gt_set2 = get_best_desc_id_set(gt_set2, gt_set1, po2, ibd_seg_list)
 
