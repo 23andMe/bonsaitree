@@ -174,6 +174,19 @@ def ibis_to_ibd_seg_list(
         for d in raw_ibis_segs
     ]
 
+    # sort ids so that we can put all segs between the same two people
+    # into the same contiguous clump
+    raw_ibis_segs = [
+        [*sorted(seg[:2])] + [*seg[2:]]
+        for seg in raw_ibis_segs
+    ]
+
+    # sort by id1, i2, chrom, gen_start, gen_end
+    raw_ibis_segs = sorted(
+        raw_ibis_segs, 
+        key=lambda x: (x[0], x[1], x[2], float(x[6]), float(x[7]))
+    )
+
     half_seg_list = [[None] * 9]
     full_seg_list = [[None] * 9]
     for seg in raw_ibis_segs:
@@ -192,8 +205,12 @@ def ibis_to_ibd_seg_list(
             err_density,
         ) = seg
 
-        id1 = int(id1.split(':')[1])
-        id2 = int(id2.split(':')[1])
+        if id1.find(':') >= 0:
+            id1 = id1.split(':')[1]
+        if id2.find(':') >= 0:
+            id2 = id2.split(':')[1]
+        #id1 = int(id1.split(':')[1])
+        #id2 = int(id2.split(':')[1])
         phys_start = float(phys_start)
         phys_end = float(phys_end)
         gen_start = float(gen_start)
@@ -233,10 +250,13 @@ def ibis_to_ibd_seg_list(
         ) = last_half_seg_info
 
         if id1 == prev_id1 and id2 == prev_id2 and chrom == prev_chrom and (prev_gen_end >= gen_start):
-            half_seg_list[-1][4] = phys_end
-            half_seg_list[-1][6] = gen_end
-            half_seg_list[-1][8] = gen_end - prev_gen_start
-        elif not is_full:
+            new_phys_end = max(prev_phys_end, phys_end)
+            new_gen_end = max(prev_gen_end, gen_end)
+            seg_len_cm = new_gen_end - prev_gen_start
+            half_seg_list[-1][4] = new_phys_end
+            half_seg_list[-1][6] = new_gen_end
+            half_seg_list[-1][8] = seg_len_cm
+        else:
             half_seg_list.append(seg_info)
 
         # either merge seg with previous full IBD segment or record a new seg
@@ -255,9 +275,12 @@ def ibis_to_ibd_seg_list(
             ) = last_full_seg_info
             
             if id1 == prev_id1 and id2 == prev_id2 and chrom == prev_chrom and (prev_gen_end >= gen_start):
-                full_seg_list[-1][4] = phys_end
-                full_seg_list[-1][6] = gen_end
-                full_seg_list[-1][8] = gen_end - prev_gen_start
+                new_phys_end = max(prev_phys_end, phys_end)
+                new_gen_end = max(prev_gen_end, gen_end)
+                seg_len_cm = new_gen_end - prev_gen_start
+                full_seg_list[-1][4] = new_phys_end
+                full_seg_list[-1][6] = new_gen_end
+                full_seg_list[-1][8] = seg_len_cm
             else:
                 full_seg_list.append(seg_info)
 
@@ -267,18 +290,34 @@ def ibis_to_ibd_seg_list(
 
     # add segments to list
     ibd_seg_list = []
-    for seg_info in half_seg_list + full_seg_list:
+    for seg_info in half_seg_list:
         (
-            id1, 
-            id2, 
-            chrom, 
-            phys_start, 
-            phys_end, 
-            gen_start, 
-            gen_end, 
-            is_full, 
+            id1,
+            id2,
+            chrom,
+            phys_start,
+            phys_end,
+            gen_start,
+            gen_end,
+            is_full,
             gen_seg_len,
         ) = seg_info
+        is_full = False
+        seg = (id1, id2, chrom, phys_start, phys_end, is_full, gen_seg_len)
+        ibd_seg_list.append(seg)
+    for seg_info in full_seg_list:
+        (
+            id1,
+            id2,
+            chrom,
+            phys_start,
+            phys_end,
+            gen_start,
+            gen_end,
+            is_full,
+            gen_seg_len,
+        ) = seg_info
+        is_full = True
         seg = (id1, id2, chrom, phys_start, phys_end, is_full, gen_seg_len)
         ibd_seg_list.append(seg)
 
