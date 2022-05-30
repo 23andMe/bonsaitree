@@ -1011,11 +1011,11 @@ def validate_seg(seg,idx):
     # [id1, id2, chromosome, start, end, is_full_ibd, seg_cm]
     if not isinstance(seg[0], int):
         raise Exception("ibd_seg_list[{}][0] must be an int".format(idx))
-    elif seg[0] < 0:
+    elif seg[0] <= 0:
         raise Exception("ibd_seg_list[{}][0] must be positive".format(idx))
     if not isinstance(seg[1], int):
         raise Exception("ibd_seg_list[{}][1] must be an int".format(idx))
-    elif seg[1] < 0:
+    elif seg[1] <= 0:
         raise Exception("ibd_seg_list[{}][1] must be positive".format(idx))
     if not isinstance(seg[2], str):
         raise Exception("ibd_seg_list[{}][2] must be a str ('1', '2', ..., 'X')".format(idx))
