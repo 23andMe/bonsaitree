@@ -125,6 +125,7 @@ def build_pedigree(
         est_index_to_gtid_set = {0 : {focal_id}}
         original_index_to_gtid_set = {0 : {focal_id}}
         original_index_to_ped_obj_list = {0 : [ped_obj]}
+        traces_dict = {}
         combine_trace = []
     else:
         distributions = load_distributions()
@@ -278,6 +279,8 @@ def build_pedigree(
     # return info that's helpful for debugging
     return_data['original_index_to_gtid_set'] = original_index_to_gtid_set
     return_data['original_index_to_ped_obj_list'] = original_index_to_ped_obj_list
+    return_data['traces_dict'] = traces_dict
+    return_data['combine_trace'] = combine_trace
 
     # return the focal ID so pedigrees can be compared with different focal IDs
     return_data['focal_id'] = focal_id
@@ -506,10 +509,10 @@ def fill_ancestors(
     if not generations:
         return pedigree
     sex, parent_1, parent_2 = pedigree[focal_id]
-    if not parent_1:
+    if parent_1 is None:
         parent_1 = get_next_predicted_node_id(pedigree)
         pedigree[parent_1] = (None, None, None)
-    if not parent_2:
+    if parent_2 is None:
         parent_2 = get_next_predicted_node_id(pedigree)
         pedigree[parent_2] = (None, None, None)
     pedigree[focal_id] = (sex, parent_1, parent_2)
