@@ -540,7 +540,7 @@ def find_open_partner_and_update_po(
     else:
         pid = None # I would call this partner_id, but there seems to be a bug in flake8 that complains
         for cid in child_id_list:
-            if not pid:
+            if pid is None:
                 pid = po.add_parent_for_child(child_id=cid)
             else:
                 po.connect_parent_child(child_id=cid, parent_id=pid)
@@ -658,7 +658,7 @@ def combine_pedigrees(
             alpha = drop_ibd_alpha,
         )
 
-        if not ca1:
+        if ca1 is None:
             continue
 
         ca2 = drop_background_ibd(
@@ -670,7 +670,7 @@ def combine_pedigrees(
             alpha = drop_ibd_alpha,
         )
 
-        if not ca2:
+        if ca2 is None:
             continue
 
         gt_set1 = {iid for iid in po1.rel_dict[ca1]['desc'] if iid > 0}

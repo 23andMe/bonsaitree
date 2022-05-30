@@ -823,7 +823,7 @@ class PedigreeObject(object):
             child_age = child_info[1]
             if parent_age and parent_age <= child_age:
                 raise Exception("Child age exceeds parent age.")
-        if not parent_id:
+        if parent_id is None:
             parent_id = self.get_new_ind()
         self.new_individual( new_id=parent_id , sex=parent_sex , age=parent_age )
         self.connect_parent_child( child_id=child_id , parent_id=parent_id)
@@ -841,7 +841,7 @@ class PedigreeObject(object):
             parent_age = parent_info[1]
             if child_age and parent_age and parent_age <= child_age:
                 raise Exception("Child age exceeds parent age.")
-        if not child_id:
+        if child_id is None:
             child_id = self.get_new_ind()
         self.new_individual( new_id=child_id , sex=child_sex , age=child_age )
         self.connect_parent_child( child_id=child_id , parent_id=parent_id)
