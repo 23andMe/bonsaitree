@@ -1,5 +1,5 @@
 install:
-	pip install -r requirements.txt
+	pip install -r requirements.in
 	python setup.py build_ext --inplace
 	pip install .
 

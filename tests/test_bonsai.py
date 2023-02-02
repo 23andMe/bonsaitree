@@ -1455,7 +1455,7 @@ def test_infer_local_pedigrees():
     random.seed(1982)
     for rep in range(num_reps):
 
-        sample_id_set = set(random.sample(all_ids, sample_size)) | {focal_id}
+        sample_id_set = set(random.sample([*all_ids], sample_size)) | {focal_id}
         new_sex_dict = {uid : sex_dict[uid] for uid in sample_id_set}
         new_age_dict = {uid : age_dict[uid] for uid in sample_id_set}
         new_pw_rels = dict()
