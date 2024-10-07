@@ -20,6 +20,9 @@ def get_node_dict(
     Args:
         ped_obj: pedigree object in which to build the node dict
         rels: build a node dict for all individuals in rels and their ancesetors
+
+    Returns:
+        node_dict: dict of the form {node : {desc1 : deg1, desc2 : deg2, ....}}
     """
     indep_rels = ped_obj.get_independent_inds(rels) #Get a subset of rels, none of whom is descended from any other individual and who are the most ancestral
     if len(indep_rels) == 1:
