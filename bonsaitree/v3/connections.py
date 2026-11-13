@@ -63,6 +63,12 @@ from .relationships import (
 )
 
 
+def _copy_up_dct(d: dict[int, dict[int, int]]) -> dict[int, dict[int, int]]:
+    # up_dct is {node: {parent: deg}} with int leaves; a 2-level dict copy is
+    # equivalent to deepcopy and ~20x faster than copy.deepcopy on this shape.
+    return {k: dict(v) for k, v in d.items()}
+
+
 def find_closest_pedigrees(
         idx_to_id_set : dict[int, set[int]],
         ibd_seg_list : list[tuple[int, int, int, int, str, float, float, float]],
@@ -1105,8 +1111,8 @@ def connect_pedigrees_through_points(
         elif pid1 > 0 and pid2 > 0:
             return []
 
-    up_dct1 = copy.deepcopy(up_dct1)
-    up_dct2 = copy.deepcopy(up_dct2)
+    up_dct1 = _copy_up_dct(up_dct1)
+    up_dct2 = _copy_up_dct(up_dct2)
 
     if deg1 > 0:
         up_dct1, _, id1, pid1 = extend_up(
@@ -1191,7 +1197,7 @@ def extend_up(
         new_id: the final ID that was added in the upward chain
         part_id: partner of new_id if num_ancs == 2
     """
-    up_dct = copy.deepcopy(up_dct)
+    up_dct = _copy_up_dct(up_dct)
 
     if deg == 0:
         return up_dct, None, iid, None
@@ -1546,8 +1552,8 @@ def connect_on(
                 values.
     """
 
-    up_dct1 = copy.deepcopy(up_dct1)
-    up_dct2 = copy.deepcopy(up_dct2)
+    up_dct1 = _copy_up_dct(up_dct1)
+    up_dct2 = _copy_up_dct(up_dct2)
 
     # resolve IDs between pedigrees. I.e.,
     # map each ID k in up_dct1 and each ID v in
@@ -1669,8 +1675,8 @@ def combine_pedigrees(
         if log_like <= -INF:
             break
 
-        up_dct1_copy = copy.deepcopy(up_dct1)
-        up_dct2_copy = copy.deepcopy(up_dct2)
+        up_dct1_copy = _copy_up_dct(up_dct1)
+        up_dct2_copy = _copy_up_dct(up_dct2)
 
         id1, pid1, dir1 = point1
         id2, pid2, dir2 = point2

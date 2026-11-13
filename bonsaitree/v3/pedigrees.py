@@ -65,8 +65,8 @@ def get_subdict(
     if node not in dct:
         return {}
 
-    sub_dct = {}
-    sub_dct[node] = copy.deepcopy(dct[node])
+    # make a copy of the node's entry in dct to avoid modifying dct
+    sub_dct = {node: dict(dct[node])}
 
     for n in dct[node]:
         n_dct = get_subdict(dct, n)
