@@ -1,7 +1,9 @@
-bonsai
+bonsai v2 (legacy)
 =============
 
 Algorithm for automatically building pedigrees using IBD, Age, and Sex information.
+
+> This document describes Bonsai v2, the top-level `bonsaitree` package. It is kept so that existing code that depends on it continues to work. New users should use Bonsai v3; see [README.md](README.md).
 
 
 Installation and testing

@@ -1,4 +1,4 @@
-ttam.bonsai.v3
+bonsaitree.v3
 =============
 
 Version 3 of the Bonsai algorithm for automatically building pedigrees
@@ -29,7 +29,7 @@ Usage
 1. `build_pedigree()`: Build a pedigree from scratch
 
     ```python
-    from ttam.bonsai.v3.bonsai import build_pedigree
+    from bonsaitree.v3.bonsai import build_pedigree
 
     up_dict_log_like_list = build_pedigree(
         bio_info=bio_info,
@@ -64,7 +64,7 @@ Usage
 2. `connect_new_node_many_ways()`: Add a new node to an existing pedigree and return multiple pedigrees, each of which contains a different way of placing the node.
 
     ```python
-    from ttam.bonsai.v3.bonsai import connect_new_node_many_ways
+    from bonsaitree.v3.bonsai import connect_new_node_many_ways
 
     up_dict_log_like_list = connect_new_node_many_ways(
         node=node,
@@ -105,7 +105,7 @@ Usage
 3. `get_new_node_connections()`: Find all ways of placing a new node `node` into an existing pedigree, but do not actually place the node.
 
     ```python
-    from ttam.bonsai.v3.bonsai import get_new_node_connections
+    from bonsaitree.v3.bonsai import get_new_node_connections
 
     point_tuple_log_like_list = get_new_node_connections(
         node=node,
@@ -157,7 +157,7 @@ Usage
 4. `connect_new_node()`: Connect a new node `new_node` to an existing pedigree and return the new pedigree with the connected node.
 
     ```python
-    from ttam.bonsai.v3.bonsai import connect_new_node
+    from bonsaitree.v3.bonsai import connect_new_node
 
     new_up_node_dict = connect_new_node(
         new_node=new_node,
@@ -180,7 +180,7 @@ Usage
 5. `get_next_node()`: Find the next node to add to the pedigree. Finds the node that shares the most IBD with someone already placed.
 
     ```python
-    from ttam.bonsai.v3.bonsai import get_next_node
+    from bonsaitree.v3.bonsai import get_next_node
 
     next_node = get_next_node(
         placed_id_set=placed_id_set,
@@ -209,20 +209,20 @@ Bonsai Parameters
 * **min_seg_len**
     - _Definition_: The minimum observable segment length (e.g., 7cM)
     - _Type_: `float`
-    - _Default_: `ttam.bonsai.v3.constants.MIN_SEG_LEN`
+    - _Default_: `bonsaitree.v3.constants.MIN_SEG_LEN`
 * **max_con_pts**
     - _Definition_: The maximum number of points in each pedigree to explore when determining the points through which it can be connected to another pedigree or to a new node.
     - _Type_: `int`
-    - _Default_: `ttam.bonsai.v3.constants.MAX_CON_PTS`
+    - _Default_: `bonsaitree.v3.constants.MAX_CON_PTS`
 * **restrict_connection_points**
     - _Definition_: When combining two pedigrees or when combining a pedigree with a new node, consider only connection points in a pedigree that are within the subtree spanning the genotyped nodes that share IBD with the other pedigree (or node).
     - _Type_: `bool`
-    - _Default_:  `ttam.bonsai.v3.constants.RESTRICT_CON_PTS`
+    - _Default_:  `bonsaitree.v3.constants.RESTRICT_CON_PTS`
 * **connect_up_only**
     - _Definition_: When connecting two pedigrees, only connect them "upward" through a common ancestor in each pedigree who is the common ancestor of all genotyped nodes that share IBD with the other pedigree. If no such set exists, attempt to find the best set.
     - _Type_: `bool`
-    - _Default_: `ttam.bonsai.v3.constants.CONNECT_UP_ONLY`
+    - _Default_: `bonsaitree.v3.constants.CONNECT_UP_ONLY`
 * **max_peds**
     - _Definition_: When combining two pedigrees, or when combining a pedigree and a new node, retain the most likely `max_peds` pedigrees.
     - _Type_: `int`
-    - _Default_: `ttam.bonsai.v3.constants.MAX_PEDS`
+    - _Default_: `bonsaitree.v3.constants.MAX_PEDS`
