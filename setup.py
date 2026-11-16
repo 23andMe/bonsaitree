@@ -15,13 +15,20 @@ setup(
     license=LICENSE,
     long_description=README,
     long_description_content_type="text/markdown",
-    packages=[NAME],
+    packages=find_packages(include=[NAME, NAME + ".*"]),
     package_dir={NAME : NAME},
-    package_data={NAME: ["models/*.json"]},
+    package_data={
+        NAME: ["models/*.json"],
+        NAME + ".v3": [
+            "cythonized/*.pyx",
+            "models/*.csv",
+            "models/ibd_moments/*/*",
+        ],
+    },
     include_package_data=True,
     url="https://github.com/23andme/" + NAME,
     zip_safe=True,
-    install_requires=["Cython", "funcy", "numpy", "scipy", "six", "setuptools-scm", "wheel"],
+    install_requires=["Cython", "frozendict", "funcy", "numpy", "pandas", "scipy", "six", "setuptools-scm", "wheel"],
     setup_requires=["Cython", "setuptools-scm", "wheel"],
     #ext_modules=[
     #    Extension("bonsaitree.copytools", sources=["bonsaitree/copytools.pyx"])
