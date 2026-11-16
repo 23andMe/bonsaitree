@@ -47,13 +47,28 @@ Inputs
     - `genotype_id`: (int) ID of the individual. Genotyped IDs must be positive integers. Ungenotyped individuals that Bonsai adds to a pedigree are given negative IDs.
     - `age`: (int or float) Age in years, where a larger value means an older person. Bonsai uses only the *differences* between ages, so ages can be measured from any common reference point. Do not pass birth years, because they reverse the direction of every age difference. If an age is unknown, set it to `None`.
     - `sex`: (str) `'M'` or `'F'`.
-    - `coverage`: (float) Genome coverage of the individual. For full-coverage genotypes (e.g., from a genotyping array), set this to `float('inf')`.
-* `unphased_ibd_seg_list`: (List of lists) IBD segments of the form `[[id1, id2, chrom, start_bp, end_bp, is_full, len_cm], ...]`, where
+    - `coverage`: (Optional, float) Genome coverage of the individual. For full-coverage genotypes (e.g., from a genotyping array), set this to `float('inf')`. If `coverage` is omitted, the individual is treated as full coverage.
+* `unphased_ibd_seg_list`: (List of lists) Unphased IBD segments, such as those detected by IBIS [[1]](#References). Unphased segments are preferred over phased segments because they tend to be less fragmented. Segments are of the form `[[id1, id2, chrom, start_bp, end_bp, is_full, len_cm], ...]`, where
     - `id1`, `id2`: (int) Genotype IDs of the two individuals sharing the segment.
     - `chrom`: (str or int) Chromosome on which the segment is found.
     - `start_bp`, `end_bp`: (float) Physical start and end positions of the segment.
-    - `is_full`: (bool) `True` if the segment is IBD2. If `False`, the segment is "half or full" (i.e., it is not necessarily IBD1).
+    - `is_full`: (bool) Segment type. `True` means a "full" segment: the region is IBD2 throughout. `False` means a "half or full" segment: the region is IBD1 or IBD2, and may contain IBD2 stretches. A region where IBD2 is embedded in IBD1 is therefore described by two overlapping segments (see the example below).
     - `len_cm`: (float) Length of the segment in cM.
+
+  For example, if individuals 1 and 2 share a region of chromosome 1 that is IBD1 from 0 to 1 Mb, IBD2 from 1 to 2 Mb, and IBD1 again from 2 to 3 Mb, the region is described by these two segments:
+  ```
+  [
+      [1, 2, '1', 0,         3_000_000, False, 3.0],  # "half or full" segment spanning the whole region
+      [1, 2, '1', 1_000_000, 2_000_000, True,  1.0],  # "full" (IBD2) segment
+  ]
+  ```
+  This differs from the output of IBD detection programs such as IBIS, which report non-overlapping IBD1 and IBD2 segments. To convert a directory of IBIS `.seg` files (one per chromosome) into this format:
+  ```python
+  from bonsaitree.utils import read_ibis_ibd
+
+  unphased_ibd_seg_list = read_ibis_ibd('ibis_output_dir')
+  ```
+  `read_ibis_ibd` expects IBIS IDs of the form `<family_id>:<individual_id>`, where `<individual_id>` is an integer; that integer is used as the genotype ID.
 * `phased_ibd_seg_list`: (Optional, list of lists) Phased IBD segments of the form `[[id1, id2, hap1, hap2, chrom, start_cm, end_cm, len_cm], ...]`, where `hap1` and `hap2` (`0` or `1`) are the haplotypes in `id1` and `id2` on which the segment occurs. Either `unphased_ibd_seg_list` or `phased_ibd_seg_list` must be provided.
 
 Commonly adjusted parameters include `min_seg_len` (the minimum segment length, in cM, that your IBD detection method reports) and `max_peds` (the number of alternative pedigrees retained at each step). See the [Bonsai v3 README](bonsaitree/v3/README.md#bonsai-parameters) for the full list.
@@ -75,6 +90,11 @@ Bonsai v3 can also add a new individual to an existing pedigree. These functions
 * `get_next_node()`: Find the unplaced individual who shares the most IBD with someone already in the pedigree.
 
 See the [Bonsai v3 README](bonsaitree/v3/README.md) for the inputs and outputs of each function.
+
+
+<a name="References"></a>References
+----------
+1. Seidman DN, Shenoy SA, Kim M, Babu R, Woods IG, Dyer TD, Lehman DM, Curran JE, Duggirala R, Blangero J, Williams AL. Rapid, phase-free detection of long identity-by-descent segments enables effective relationship classification. *American Journal of Human Genetics*. 2020;106(4):453–466. https://doi.org/10.1016/j.ajhg.2020.02.012
 
 
 <a name="Troubleshooting"></a>Troubleshooting
