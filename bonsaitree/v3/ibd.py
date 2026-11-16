@@ -1,4 +1,5 @@
 import json
+import warnings
 from collections import defaultdict
 from typing import Any
 
@@ -712,6 +713,69 @@ def get_closest_pair_among_sets(
                 max_i1 = i1
                 max_i2 = i2
     return max_i1, max_i2, max_ibd
+
+
+def check_full_segs_contained(
+    unphased_ibd_seg_list: list[list[Any]],
+):
+    """
+    Check that unphased segments follow the "half or full" / "full"
+    convention that Bonsai expects. Under this convention, every
+    full (IBD2) segment lies inside a "half or full" segment
+    between the same pair on the same chromosome. Segments taken
+    directly from callers such as IBIS, which report non-overlapping
+    IBD1 and IBD2 segments, break this rule. Issues a warning if any
+    full segment is not contained in a "half or full" segment.
+
+    Args:
+        unphased_ibd_seg_list: List of segments of the form
+            [[id1, id2, chrom, start_bp, end_bp, is_full, len_cm],...]
+
+    Returns:
+        uncontained_seg_list: List of full segments that are not
+            contained in a "half or full" segment.
+    """
+
+    # merge the "half or full" segments of each pair on each chromosome
+    key_to_half_regions = defaultdict(list)
+    full_seg_list = []
+    for seg in unphased_ibd_seg_list:
+        id1, id2, chrom, start, end, is_full = seg[:6]
+        if is_full:
+            full_seg_list.append(seg)
+        else:
+            key = (frozenset({id1, id2}), str(chrom))
+            key_to_half_regions[key].append((start, end))
+
+    for key, regions in key_to_half_regions.items():
+        regions.sort()
+        merged_regions = [list(regions[0])]
+        for start, end in regions[1:]:
+            if start <= merged_regions[-1][1]:
+                merged_regions[-1][1] = max(merged_regions[-1][1], end)
+            else:
+                merged_regions.append([start, end])
+        key_to_half_regions[key] = merged_regions
+
+    # find full segments that are not inside a merged "half or full" region
+    uncontained_seg_list = []
+    for seg in full_seg_list:
+        id1, id2, chrom, start, end = seg[:5]
+        key = (frozenset({id1, id2}), str(chrom))
+        regions = key_to_half_regions.get(key, [])
+        if not any(r_start <= start and end <= r_end for r_start, r_end in regions):
+            uncontained_seg_list.append(seg)
+
+    if uncontained_seg_list:
+        warnings.warn(
+            f"{len(uncontained_seg_list)} of {len(full_seg_list)} full (IBD2) segments "
+            "are not contained in a 'half or full' segment between the same pair. "
+            "Bonsai expects each IBD2 region to also be covered by a 'half or full' "
+            "segment (is_full=False). If these segments come from IBIS, convert them "
+            "with bonsaitree.utils.read_ibis_ibd() before running Bonsai."
+        )
+
+    return uncontained_seg_list
 
 
 def get_id_set_from_seg_list(

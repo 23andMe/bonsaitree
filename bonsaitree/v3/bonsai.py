@@ -16,6 +16,7 @@ from .constants import (
     RESTRICT_CON_PTS,
 )
 from .ibd import (
+    check_full_segs_contained,
     get_ibd_stats_unphased,
     get_id_set_from_seg_list,
     get_phased_to_unphased,
@@ -155,6 +156,9 @@ def build_pedigree(
     # set up unphased IBD segments if none are provided
     if unphased_ibd_seg_list is None:
         unphased_ibd_seg_list = get_phased_to_unphased(phased_ibd_seg_list)
+    else:
+        # warn if the segments do not follow the "half or full" / "full" convention
+        check_full_segs_contained(unphased_ibd_seg_list)
 
     # set up pseudo-phased IBD segments if none are provided
     if phased_ibd_seg_list is None:
@@ -299,6 +303,9 @@ def connect_new_node_many_ways(
     # set up unphased IBD segments if none are provided
     if unphased_ibd_seg_list is None:
         unphased_ibd_seg_list = get_phased_to_unphased(phased_ibd_seg_list)
+    else:
+        # warn if the segments do not follow the "half or full" / "full" convention
+        check_full_segs_contained(unphased_ibd_seg_list)
 
     # set up pseudo-phased IBD segments if none are provided
     if phased_ibd_seg_list is None:
@@ -460,6 +467,9 @@ def get_new_node_connections(
     # set up unphased IBD segments if none are provided
     if unphased_ibd_seg_list is None:
         unphased_ibd_seg_list = get_phased_to_unphased(phased_ibd_seg_list)
+    else:
+        # warn if the segments do not follow the "half or full" / "full" convention
+        check_full_segs_contained(unphased_ibd_seg_list)
 
     # set up pseudo-phased IBD segments if none are provided
     if phased_ibd_seg_list is None:

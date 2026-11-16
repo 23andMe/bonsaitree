@@ -68,7 +68,7 @@ Inputs
 
   unphased_ibd_seg_list = read_ibis_ibd('ibis_output_dir')
   ```
-  `read_ibis_ibd` expects IBIS IDs of the form `<family_id>:<individual_id>`, where `<individual_id>` is an integer; that integer is used as the genotype ID.
+  `read_ibis_ibd` expects IBIS IDs of the form `<family_id>:<individual_id>`, where `<individual_id>` is an integer; that integer is used as the genotype ID. If any full segment in `unphased_ibd_seg_list` is not contained in a "half or full" segment between the same pair, Bonsai issues a warning, because this usually means the segments were not converted to this format.
 * `phased_ibd_seg_list`: (Optional, list of lists) Phased IBD segments of the form `[[id1, id2, hap1, hap2, chrom, start_cm, end_cm, len_cm], ...]`, where `hap1` and `hap2` (`0` or `1`) are the haplotypes in `id1` and `id2` on which the segment occurs. Either `unphased_ibd_seg_list` or `phased_ibd_seg_list` must be provided.
 
 Commonly adjusted parameters include `min_seg_len` (the minimum segment length, in cM, that your IBD detection method reports) and `max_peds` (the number of alternative pedigrees retained at each step). See the [Bonsai v3 README](bonsaitree/v3/README.md#bonsai-parameters) for the full list.
