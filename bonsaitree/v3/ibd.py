@@ -771,8 +771,9 @@ def check_full_segs_contained(
             f"{len(uncontained_seg_list)} of {len(full_seg_list)} full (IBD2) segments "
             "are not contained in a 'half or full' segment between the same pair. "
             "Bonsai expects each IBD2 region to also be covered by a 'half or full' "
-            "segment (is_full=False). If these segments come from IBIS, convert them "
-            "with bonsaitree.utils.read_ibis_ibd() before running Bonsai."
+            "segment (is_full=False). If these segments come from IBIS, load the raw "
+            "IBIS .seg files with bonsaitree.utils.read_ibis_ibd(<ibis_output_dir>), "
+            "which converts them to this format."
         )
 
     return uncontained_seg_list
